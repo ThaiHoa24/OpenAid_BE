@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-openaid}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openaid_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-openaid_db}
+    ports:
+      - '${DB_PORT:-5433}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-openaid}:${POSTGRES_PASSWORD:-openaid_dev_password}@db:5432/${POSTGRES_DB:-openaid_db}?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - '${PORT:-3001}:3001'
+    depends_on:
+      db:
+        condition: service_healthy
+    init: true
+
+volumes:
+  postgres_data:
