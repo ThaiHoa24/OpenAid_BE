@@ -63,8 +63,7 @@ OpenAid_BE/
 ├── prisma/
 │   ├── migrations/             # Migration SQL, CHECK và partial unique index
 │   ├── schema.prisma           # 20 models, 12 enums và các quan hệ dữ liệu
-│   ├── seed.mjs                # Script thực thi bởi npm run prisma:seed
-│   └── seed.ts                 # Bản seed TypeScript
+│   └── seed.mjs                # Script thực thi bởi npm run prisma:seed
 ├── src/
 │   ├── common/                 # Decorator, guard, DTO, filter, interceptor, pipe, utils
 │   ├── config/                 # Cấu hình và kiểm tra biến môi trường
