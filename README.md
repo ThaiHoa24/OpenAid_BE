@@ -25,10 +25,10 @@ OpenAid hướng tới ba nhóm nghiệp vụ: quản lý chiến dịch và tì
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Tài khoản và hồ sơ | Đã có xử lý đăng ký, đăng nhập, phát JWT, xem và cập nhật hồ sơ cá nhân.                                                                                                                                                                |
 | Hạ tầng HTTP       | Đã có JWT guard và system-role guard toàn cục, validation DTO, CORS, định dạng response, xử lý lỗi, Swagger và liveness endpoint.                                                                                                       |
-| Cơ sở dữ liệu      | Đã có Prisma schema, initial migration SQL và seed dữ liệu nền tảng. Cần chạy migration để tạo database.                                                                                                                                |
+| Cơ sở dữ liệu      | PostgreSQL `openaid` gồm 20 bảng, UUID và TIMESTAMPTZ. Đã thiết lập hoàn tất baseline migration (`20261028000000_init`) và đồng bộ hoàn toàn với Prisma schema.                                 |
 | Module nghiệp vụ   | Đã có route, DTO, controller và service khung cho tổ chức, chiến dịch, tình nguyện viên, quyên góp, kho, kiện hàng, chuyến xe, cấp phát, bằng chứng, minh bạch, dashboard và quản trị. Các use case này đang trả `501 Not Implemented`. |
 | Lưu trữ ảnh        | Đã có interface và service placeholder; lưu/xóa tệp chưa được triển khai.                                                                                                                                                               |
-| Kiểm thử           | Đã có unit test cho tiện ích và HTTP smoke test dùng Prisma mock. Các kịch bản tích hợp nghiệp vụ còn là `it.todo`.                                                                                                                     |
+| Kiểm thử           | Có unit test tiện ích/xác thực, HTTP smoke test và bộ kiểm tra tài khoản trên PostgreSQL test riêng. Các kịch bản tích hợp nghiệp vụ còn là `it.todo`.                                                                                  |
 
 Các endpoint khung gọi `featureNotImplemented()` với mã yêu cầu FR cần triển khai. Request vẫn có thể bị từ chối bởi xác thực, phân quyền hoặc validation trước khi tới service.
 
@@ -36,17 +36,17 @@ Các endpoint khung gọi `featureNotImplemented()` với mã yêu cầu FR cầ
 
 Các phiên bản chính dưới đây theo khai báo trong `package.json` và image trong `compose.yaml`:
 
-| Thành phần            | Công nghệ                                                 |
-| --------------------- | --------------------------------------------------------- |
-| Runtime               | Node.js >= 22, npm                                        |
-| Ngôn ngữ              | TypeScript 6, native ESM (`"type": "module"`)             |
-| Framework             | NestJS 12, Express                                        |
-| Database / ORM        | PostgreSQL 16, Prisma 6 (`@prisma/client`)                |
-| Xác thực              | Passport JWT, bcrypt                                      |
-| Validation / API docs | `class-validator`, `class-transformer`, `@nestjs/swagger` |
-| Kiểm thử              | Vitest 4, Supertest 7, coverage V8                        |
-| Chất lượng mã nguồn   | Oxlint, Prettier                                          |
-| Container / CI        | Docker Compose, GitHub Actions                            |
+| Thành phần            | Công nghệ                                                                 |
+| --------------------- | ------------------------------------------------------------------------- |
+| Runtime               | Node.js >= 22, npm                                                        |
+| Ngôn ngữ              | TypeScript 6, native ESM (`"type": "module"`)                             |
+| Framework             | NestJS 12, Express                                                        |
+| Database / ORM        | PostgreSQL, Prisma 6 (`@prisma/client`); image Compose dùng PostgreSQL 16 |
+| Xác thực              | Passport JWT, bcrypt                                                      |
+| Validation / API docs | `class-validator`, `class-transformer`, `@nestjs/swagger`                 |
+| Kiểm thử              | Vitest 4, Supertest 7, coverage V8                                        |
+| Chất lượng mã nguồn   | Oxlint, Prettier                                                          |
+| Container / CI        | Docker Compose, GitHub Actions                                            |
 
 ## Cấu trúc dự án
 
@@ -61,9 +61,10 @@ OpenAid_BE/
 │   ├── SRS_OpenAid.md
 │   └── C1SE.102_ProjectProposal.docx
 ├── prisma/
-│   ├── migrations/             # Migration SQL, CHECK và partial unique index
+│   ├── migrations/             # Baseline migration (20261028000000_init) chuẩn hóa cho DB openaid
 │   ├── schema.prisma           # 20 models, 12 enums và các quan hệ dữ liệu
 │   └── seed.mjs                # Script thực thi bởi npm run prisma:seed
+├── scripts/check-db.mjs        # Kiểm tra kết nối và so sánh schema, chỉ đọc DB
 ├── src/
 │   ├── common/                 # Decorator, guard, DTO, filter, interceptor, pipe, utils
 │   ├── config/                 # Cấu hình và kiểm tra biến môi trường
@@ -90,6 +91,7 @@ OpenAid_BE/
 │   └── main.ts                 # Entry point
 ├── test/
 │   ├── scaffold.e2e-spec.ts    # HTTP smoke test với Prisma mock
+│   ├── postgres-compatibility.e2e-spec.ts # Kiểm tra tài khoản trên DB test riêng
 │   └── *.e2e-spec.ts           # Kịch bản tích hợp nghiệp vụ đang để TODO
 ├── .env.example               # Mẫu cấu hình môi trường
 ├── compose.yaml               # PostgreSQL và backend
@@ -106,7 +108,7 @@ OpenAid_BE/
 ### 1. Chuẩn bị môi trường
 
 - Node.js >= 22 và npm.
-- Docker với Docker Compose để chạy PostgreSQL, hoặc PostgreSQL 16 được cài riêng.
+- PostgreSQL đang chạy và database `openaid` đã được tạo bằng script SQL hiện tại.
 - Git để lấy mã nguồn.
 
 Chạy các lệnh dưới đây tại thư mục gốc của repository.
@@ -127,50 +129,55 @@ cp .env.example .env
 
 Nếu đã có `.env`, cập nhật các giá trị cần thiết trong tệp đó. Mẫu cấu hình mặc định:
 
-| Biến                | Giá trị trong `.env.example`                                                        | Ý nghĩa                                                        |
-| ------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `PORT`              | `3001`                                                                              | Cổng HTTP khi chạy backend cục bộ; cổng host khi chạy Compose. |
-| `NODE_ENV`          | `development`                                                                       | Chấp nhận `development`, `production` hoặc `test`.             |
-| `DATABASE_URL`      | `postgresql://openaid:openaid_dev_password@localhost:5433/openaid_db?schema=public` | Kết nối PostgreSQL khi chạy backend cục bộ; bắt buộc có.       |
-| `JWT_SECRET`        | `replace-with-a-random-development-secret`                                          | Khóa ký JWT; bắt buộc có và cần thay bằng giá trị riêng.       |
-| `JWT_EXPIRES_IN`    | `7d`                                                                                | Thời hạn access token.                                         |
-| `FRONTEND_URL`      | `http://localhost:3000`                                                             | Origin được phép gọi API qua CORS, có bật credentials.         |
-| `POSTGRES_USER`     | `openaid`                                                                           | Tài khoản PostgreSQL dùng bởi Compose.                         |
-| `POSTGRES_PASSWORD` | `openaid_dev_password`                                                              | Mật khẩu PostgreSQL dùng bởi Compose.                          |
-| `POSTGRES_DB`       | `openaid_db`                                                                        | Tên database dùng bởi Compose.                                 |
-| `DB_PORT`           | `5433`                                                                              | Cổng PostgreSQL trên máy host; cổng trong container là `5432`. |
+| Biến                | Giá trị trong `.env.example`                                                                     | Ý nghĩa                                                        |
+| ------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `PORT`              | `3001`                                                                                           | Cổng HTTP khi chạy backend cục bộ; cổng host khi chạy Compose. |
+| `NODE_ENV`          | `development`                                                                                    | Chấp nhận `development`, `production` hoặc `test`.             |
+| `DATABASE_URL`      | `postgresql://postgres:replace-with-your-postgres-password@localhost:5432/openaid?schema=public` | Kết nối PostgreSQL hiện có; thay mật khẩu bằng giá trị thực.   |
+| `JWT_SECRET`        | `replace-with-a-random-development-secret`                                                       | Khóa ký JWT; bắt buộc có và cần thay bằng giá trị riêng.       |
+| `JWT_EXPIRES_IN`    | `7d`                                                                                             | Thời hạn access token.                                         |
+| `FRONTEND_URL`      | `http://localhost:3000`                                                                          | Origin được phép gọi API qua CORS, có bật credentials.         |
+| `POSTGRES_USER`     | `openaid`                                                                                        | Tài khoản PostgreSQL dùng bởi Compose.                         |
+| `POSTGRES_PASSWORD` | `openaid_dev_password`                                                                           | Mật khẩu PostgreSQL dùng bởi Compose.                          |
+| `POSTGRES_DB`       | `openaid_db`                                                                                     | Tên database dùng bởi Compose.                                 |
+| `DB_PORT`           | `5433`                                                                                           | Cổng PostgreSQL trên máy host; cổng trong container là `5432`. |
 
-Khi đổi thông tin PostgreSQL hoặc `DB_PORT`, cập nhật `DATABASE_URL` tương ứng cho backend chạy cục bộ. Không commit `.env` chứa secret.
+Tên database phân biệt hoa thường: cấu hình hiện tại dùng `openaid`. Mật khẩu có ký tự đặc biệt cần mã hóa URL. Các biến `POSTGRES_*` và `DB_PORT` chỉ dùng cho database Compose riêng, không thay đổi PostgreSQL cài trên máy. Không commit `.env` chứa secret.
 
-### 3. Cài dependencies và khởi động PostgreSQL
+### 3. Cài dependencies
 
 ```bash
 npm ci
-docker compose up -d db
 ```
 
-Nếu dùng PostgreSQL cài riêng, tạo database và cấu hình `DATABASE_URL` thay cho bước Compose. Chờ database sẵn sàng trước khi chạy migration.
+Đảm bảo PostgreSQL đang hoạt động và tài khoản trong `DATABASE_URL` truy cập được database hiện có.
 
-### 4. Sinh Prisma Client và áp dụng migration
+### 4. Áp dụng Migration, sinh Client và nạp dữ liệu mẫu
 
-```bash
-npm run prisma:validate
-npm run prisma:generate
-npm run prisma:migrate:deploy
-```
+Dự án đã thiết lập baseline migration chuẩn hóa (`20261028000000_init`) tương thích hoàn toàn với PostgreSQL (UUID `gen_random_uuid()`, `TIMESTAMPTZ`, các quan hệ bảng).
 
-Hướng dẫn này dành cho database phát triển mới. Nếu database đang dùng schema cũ, cần lập kế hoạch chuyển dữ liệu trước khi áp dụng migration hiện tại.
-
-`prisma:migrate:deploy` áp dụng các migration đã có trong `prisma/migrations/`. Khi phát triển thay đổi schema và cần tạo migration mới, dùng `npm run prisma:migrate -- --name ten_thay_doi`.
-
-### 5. Nạp dữ liệu mẫu và chạy backend
+Để đồng bộ cấu trúc database và nạp dữ liệu nền tảng ban đầu:
 
 ```bash
+# Áp dụng migration vào database và tự động sinh Prisma Client
+npx prisma migrate dev
+
+# Nạp dữ liệu mẫu (tài khoản demo, tổ chức mẫu, danh mục)
 npm run prisma:seed
+
+# Kiểm tra kết nối và tính toàn vẹn giữa DB và schema
+npm run db:check
+```
+
+`db:check` kết nối bằng Prisma, hiển thị tên database/schema và so sánh database với `schema.prisma`. Khi lệnh báo `Database matches Prisma`, cơ sở dữ liệu đã hoàn toàn sẵn sàng.
+
+### 5. Chạy backend
+
+```bash
 npm run start:dev
 ```
 
-Seed là bước tùy chọn để có dữ liệu phát triển. Prisma kết nối PostgreSQL khi ứng dụng khởi động, nên database phải đang hoạt động.
+Prisma kết nối PostgreSQL khi ứng dụng khởi động. Bạn có thể sử dụng các tài khoản demo đã được nạp từ seed script để đăng nhập và kiểm thử API.
 
 | Thành phần   | Đường dẫn mặc định                      |
 | ------------ | --------------------------------------- |
@@ -230,19 +237,9 @@ Response lỗi gồm `success: false`, `statusCode`, `timestamp`, `path` và `me
 
 Các route nghiệp vụ khác hiện được công bố trong Swagger nhưng vẫn là khung chờ triển khai. Xem [API Contract](docs/API_contract/API_CONTRACT_OpenAid.md) để đối chiếu phạm vi tích hợp và [mã nguồn controller](src/modules/) để kiểm tra route hiện có.
 
-## Chạy bằng Docker Compose
+## Docker Compose tùy chọn
 
-Tạo `.env` và đặt `JWT_SECRET` như hướng dẫn trên, sau đó chạy:
-
-```bash
-docker compose up -d db
-docker compose build backend
-docker compose run --rm backend npm run prisma:migrate:deploy
-docker compose run --rm backend npm run prisma:seed
-docker compose up -d backend
-```
-
-Bước seed có thể bỏ qua nếu không cần dữ liệu mẫu. Compose gồm hai service `db` và `backend`; backend chờ database healthy trước khi khởi động. Migration và seed là các lệnh chạy riêng.
+Compose gồm hai service `db` và `backend`, sử dụng database riêng với PostgreSQL cài trên máy. Muốn chạy bằng Compose, cần nạp schema SQL hiện tại vào database container hoặc hoàn tất baseline migration trước. Các lệnh Compose không tự sao chép cấu trúc hay dữ liệu từ `openaid` cục bộ.
 
 Trong Compose, backend chạy ở cổng `3001` trong container và kết nối PostgreSQL bằng `db:5432`; `DATABASE_URL` được Compose tạo từ các biến `POSTGRES_*`. Cổng host mặc định là `3001` cho API và `5433` cho PostgreSQL. Volume `postgres_data` giữ dữ liệu database qua các lần khởi động lại container.
 
@@ -254,7 +251,11 @@ Trong Compose, backend chạy ở cổng `3001` trong container và kết nối 
 | `npm run start:debug`     | Chạy backend với debugger và watch mode                      |
 | `npm run build`           | Sinh Prisma Client và biên dịch NestJS vào `dist/`           |
 | `npm run start:prod`      | Chạy `dist/main.js` sau khi build                            |
-| `npm run prisma:validate` | Kiểm tra Prisma schema                                       |
+| `npm run prisma:validate` | Kiểm tra cú pháp Prisma schema                               |
+| `npm run prisma:generate` | Sinh lại TypeScript Prisma Client                            |
+| `npm run prisma:migrate`  | Chạy migrate dev để áp dụng migration mới                    |
+| `npm run prisma:seed`     | Nạp dữ liệu nền tảng mẫu vào database                        |
+| `npm run db:check`        | Kiểm tra kết nối DB và so sánh cấu trúc Prisma, không ghi DB |
 | `npm run lint`            | Chạy Oxlint cho `src/` và `test/`                            |
 | `npm run format`          | Ghi lại định dạng các tệp TypeScript trong `src/` và `test/` |
 | `npm test`                | Chạy unit test bằng Vitest                                   |
@@ -264,7 +265,9 @@ Trong Compose, backend chạy ở cổng `3001` trong container và kết nối 
 
 CI tại `.github/workflows/ci.yml` dùng Node.js 22 và chạy `npm ci`, validate schema, build, lint, unit test và E2E khi push hoặc mở Pull Request.
 
-Smoke test trong `test/scaffold.e2e-spec.ts` dùng chung cấu hình HTTP với ứng dụng và thay `PrismaService` bằng mock, không cần PostgreSQL thật. Các test nghiệp vụ còn là TODO; CI hiện chưa kiểm chứng migration, seed hay workflow trên database thật.
+Smoke test trong `test/scaffold.e2e-spec.ts` dùng chung cấu hình HTTP với ứng dụng và thay `PrismaService` bằng mock, không cần PostgreSQL thật. Các test nghiệp vụ còn là TODO.
+
+`test/postgres-compatibility.e2e-spec.ts` kiểm tra đăng ký/đăng nhập, email không phân biệt hoa thường, đăng ký đồng thời, hồ sơ, UUID, trigger `updatedAt` và validation. Bộ này mặc định bỏ qua; chỉ ghi dữ liệu khi có `TEST_DATABASE_URL` trỏ tới database test riêng tên `openaid_test` hoặc `openaid_sync_test_<12 ký tự hex>`, đã có schema SQL hiện tại. Nó không dùng `DATABASE_URL` làm URL dự phòng và chỉ xóa tài khoản do chính lượt test tạo. Không trỏ biến test vào database đang sử dụng. CI hiện chưa cấp PostgreSQL cho bộ test này.
 
 ## Phân quyền và nguyên tắc phát triển
 

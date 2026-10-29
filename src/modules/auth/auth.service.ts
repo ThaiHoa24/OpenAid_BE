@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma.service.js';
 import { LoginDto, RegisterDto } from './dto/index.js';
@@ -16,8 +17,9 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+    const email = dto.email.trim().toLowerCase();
+    const existing = await this.prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
     });
 
     if (existing) {
@@ -26,21 +28,32 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        fullName: dto.fullName,
-        passwordHash,
-        phoneNumber: dto.phoneNumber,
-      },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        systemRole: true,
-        createdAt: true,
-      },
-    });
+    const user = await this.prisma.user
+      .create({
+        data: {
+          email,
+          fullName: dto.fullName,
+          passwordHash,
+          phoneNumber: dto.phoneNumber,
+        },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          systemRole: true,
+          createdAt: true,
+        },
+      })
+      .catch((error: unknown) => {
+        // PostgreSQL also enforces LOWER(email); concurrent signups may race.
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          throw new BadRequestException('Email is already registered');
+        }
+        throw error;
+      });
 
     const token = this.generateToken(user.id, user.email, user.systemRole);
 
@@ -51,8 +64,8 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: dto.email.trim(), mode: 'insensitive' } },
     });
 
     if (!user || !user.isActive) {

@@ -20,6 +20,7 @@
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "prisma:generate": "prisma generate",
+    "db:check": "node scripts/check-db.mjs",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
     "prebuild": "prisma generate",

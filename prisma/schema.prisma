@@ -1,3 +1,5 @@
+// Introspected from PostgreSQL openaid. UUIDs and updatedAt are managed by the database.
+// CHECK constraints, partial indexes and triggers remain in PostgreSQL; migrations are deferred.
 generator client {
   provider = "prisma-client-js"
 }
@@ -5,6 +7,441 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model User {
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                 String                 @unique @db.VarChar(255)
+  passwordHash          String
+  fullName              String                 @db.VarChar(150)
+  phoneNumber           String?                @db.VarChar(25)
+  avatarUrl             String?
+  systemRole            SystemRole             @default(USER)
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime               @default(now()) @db.Timestamptz(6)
+  createdBatches        Batch[]
+  distributionRecords   DistributionRecord[]
+  donations             Donation[]
+  receivedDonations     Donation[]             @relation("donations_receivedByIdTousers")
+  createdEvents         Event[]
+  reviewedEvidence      Evidence[]             @relation("EvidenceReviewer")
+  uploadedEvidence      Evidence[]             @relation("EvidenceUploader")
+  memberships           OrganizationMember[]
+  createdOrganizations  Organization[]         @relation("organizations_createdByIdTousers")
+  reviewedOrganizations Organization[]         @relation("organizations_reviewedByIdTousers")
+  logs                  TransparencyLog[]
+  createdTrips          Trip[]
+  reviewedApplications  VolunteerApplication[] @relation("volunteer_applications_reviewedByIdTousers")
+  volunteerApplications VolunteerApplication[]
+  checkedInAttendances  VolunteerAttendance[]  @relation("volunteer_attendance_checkedInByIdTousers")
+  checkedOutAttendances VolunteerAttendance[]  @relation("volunteer_attendance_checkedOutByIdTousers")
+
+  @@map("users")
+}
+
+model Organization {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdById     String               @db.Uuid
+  name            String               @db.VarChar(200)
+  code            String               @unique @db.VarChar(50)
+  description     String?
+  email           String               @db.VarChar(255)
+  phoneNumber     String?              @db.VarChar(25)
+  address         String?
+  status          OrgStatus            @default(PENDING)
+  reviewedById    String?              @db.Uuid
+  reviewedAt      DateTime?            @db.Timestamptz(6)
+  rejectionReason String?
+  createdAt       DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime             @default(now()) @db.Timestamptz(6)
+  events          Event[]
+  members         OrganizationMember[]
+  createdBy       User                 @relation("organizations_createdByIdTousers", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reviewedBy      User?                @relation("organizations_reviewedByIdTousers", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([status], map: "idx_organizations_status")
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String           @db.Uuid
+  organizationId String           @db.Uuid
+  role           OrganizationRole @default(MEMBER)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(6)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user           User             @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([userId, organizationId], map: "uq_organization_member")
+  @@index([organizationId, role], map: "idx_org_members_org_role")
+  @@index([userId], map: "idx_org_members_user")
+  @@map("organization_members")
+}
+
+model Event {
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String                 @db.Uuid
+  createdById           String                 @db.Uuid
+  title                 String                 @db.VarChar(200)
+  description           String?
+  location              String
+  contactName           String                 @db.VarChar(150)
+  contactPhone          String?                @db.VarChar(25)
+  startDate             DateTime               @db.Timestamptz(6)
+  endDate               DateTime?              @db.Timestamptz(6)
+  status                EventStatus            @default(DRAFT)
+  createdAt             DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime               @default(now()) @db.Timestamptz(6)
+  batches               Batch[]
+  donationNeeds         DonationNeed[]
+  donations             Donation[]
+  createdBy             User                   @relation(fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inventory             Inventory[]
+  logs                  TransparencyLog[]
+  trips                 Trip[]
+  volunteerApplications VolunteerApplication[]
+  volunteerRoles        VolunteerRole[]
+
+  @@index([organizationId, status], map: "idx_events_org_status")
+  @@index([status, startDate], map: "idx_events_status_start")
+  @@map("events")
+}
+
+model VolunteerRole {
+  id           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId      String                 @db.Uuid
+  name         String                 @db.VarChar(120)
+  description  String?
+  quantity     Int
+  createdAt    DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime               @default(now()) @db.Timestamptz(6)
+  applications VolunteerApplication[]
+  event        Event                  @relation(fields: [eventId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([eventId, name], map: "uq_volunteer_roles_event_name")
+  @@unique([id, eventId], map: "uq_volunteer_roles_id_event")
+  @@map("volunteer_roles")
+}
+
+model VolunteerApplication {
+  id              String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId         String                     @db.Uuid
+  userId          String                     @db.Uuid
+  volunteerRoleId String                     @db.Uuid
+  status          VolunteerApplicationStatus @default(PENDING)
+  notes           String?
+  reviewedById    String?                    @db.Uuid
+  reviewedAt      DateTime?                  @db.Timestamptz(6)
+  rejectionReason String?
+  createdAt       DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime                   @default(now()) @db.Timestamptz(6)
+  tripAssignments TripVolunteer[]
+  volunteerRole   VolunteerRole              @relation(fields: [volunteerRoleId, eventId], references: [id, eventId], onDelete: NoAction, onUpdate: NoAction, map: "fk_application_role_event")
+  event           Event                      @relation(fields: [eventId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reviewedBy      User?                      @relation("volunteer_applications_reviewedByIdTousers", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user            User                       @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  attendance      VolunteerAttendance?
+
+  @@unique([eventId, userId], map: "uq_application_event_user")
+  @@unique([id, eventId], map: "uq_application_id_event")
+  @@index([volunteerRoleId, status], map: "idx_applications_role_status")
+  @@index([userId, status], map: "idx_applications_user_status")
+  @@map("volunteer_applications")
+}
+
+model VolunteerAttendance {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId  String               @unique @db.Uuid
+  checkedInAt    DateTime             @db.Timestamptz(6)
+  checkedOutAt   DateTime?            @db.Timestamptz(6)
+  checkedInById  String?              @db.Uuid
+  checkedOutById String?              @db.Uuid
+  method         String               @default("MANUAL") @db.VarChar(10)
+  application    VolunteerApplication @relation(fields: [applicationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  checkedInBy    User?                @relation("volunteer_attendance_checkedInByIdTousers", fields: [checkedInById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  checkedOutBy   User?                @relation("volunteer_attendance_checkedOutByIdTousers", fields: [checkedOutById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("volunteer_attendance")
+}
+
+model ItemType {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code      String         @unique @db.VarChar(50)
+  name      String         @db.VarChar(120)
+  category  String         @db.VarChar(80)
+  isActive  Boolean        @default(true)
+  batches   Batch[]
+  needs     DonationNeed[]
+  donations Donation[]
+  inventory Inventory[]
+
+  @@map("item_types")
+}
+
+model Unit {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code      String         @unique @db.VarChar(30)
+  name      String         @db.VarChar(100)
+  isActive  Boolean        @default(true)
+  batches   Batch[]
+  needs     DonationNeed[]
+  donations Donation[]
+  inventory Inventory[]
+
+  @@map("units")
+}
+
+model DonationNeed {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId        String     @db.Uuid
+  itemTypeId     String     @db.Uuid
+  unitId         String     @db.Uuid
+  targetQuantity Decimal    @db.Decimal(14, 3)
+  notes          String?
+  createdAt      DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime   @default(now()) @db.Timestamptz(6)
+  event          Event      @relation(fields: [eventId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  itemType       ItemType   @relation(fields: [itemTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  unit           Unit       @relation(fields: [unitId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  donations      Donation[]
+
+  @@unique([id, eventId, itemTypeId, unitId], map: "uq_donation_needs_composite")
+  @@unique([eventId, itemTypeId, unitId], map: "uq_donation_needs_event_item_unit")
+  @@map("donation_needs")
+}
+
+model Donation {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trackingId       String         @unique @db.VarChar(64)
+  eventId          String         @db.Uuid
+  donationNeedId   String         @db.Uuid
+  itemTypeId       String         @db.Uuid
+  unitId           String         @db.Uuid
+  donorId          String         @db.Uuid
+  batchId          String?        @db.Uuid
+  quantity         Decimal        @db.Decimal(14, 3)
+  receivedQuantity Decimal        @default(0) @db.Decimal(14, 3)
+  photoUrl         String?
+  status           DonationStatus @default(PENDING)
+  receivedById     String?        @db.Uuid
+  receivedAt       DateTime?      @db.Timestamptz(6)
+  rejectionReason  String?
+  createdAt        DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime       @default(now()) @db.Timestamptz(6)
+  donor            User           @relation(fields: [donorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  event            Event          @relation(fields: [eventId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  itemType         ItemType       @relation(fields: [itemTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  receivedBy       User?          @relation("donations_receivedByIdTousers", fields: [receivedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  unit             Unit           @relation(fields: [unitId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  batch            Batch?         @relation(fields: [batchId, eventId, itemTypeId, unitId], references: [id, eventId, itemTypeId, unitId], onDelete: NoAction, onUpdate: NoAction, map: "fk_donation_batch")
+  donationNeed     DonationNeed   @relation(fields: [donationNeedId, eventId, itemTypeId, unitId], references: [id, eventId, itemTypeId, unitId], onDelete: NoAction, onUpdate: NoAction, map: "fk_donation_need")
+
+  @@index([batchId], map: "idx_donations_batch")
+  @@index([donorId, createdAt(sort: Desc)], map: "idx_donations_donor_created")
+  @@index([eventId, status], map: "idx_donations_event_status")
+  @@map("donations")
+}
+
+model Inventory {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId             String   @db.Uuid
+  itemTypeId          String   @db.Uuid
+  unitId              String   @db.Uuid
+  receivedQuantity    Decimal  @default(0) @db.Decimal(14, 3)
+  availableQuantity   Decimal  @default(0) @db.Decimal(14, 3)
+  reservedQuantity    Decimal  @default(0) @db.Decimal(14, 3)
+  distributedQuantity Decimal  @default(0) @db.Decimal(14, 3)
+  lostQuantity        Decimal  @default(0) @db.Decimal(14, 3)
+  updatedAt           DateTime @default(now()) @db.Timestamptz(6)
+  batches             Batch[]
+  event               Event    @relation(fields: [eventId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  itemType            ItemType @relation(fields: [itemTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  unit                Unit     @relation(fields: [unitId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id, eventId, itemTypeId, unitId], map: "uq_inventory_composite")
+  @@unique([eventId, itemTypeId, unitId], map: "uq_inventory_event_item_unit")
+  @@map("inventories")
+}
+
+model Batch {
+  id                 String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  batchCode          String      @unique @db.VarChar(60)
+  eventId            String      @db.Uuid
+  createdById        String      @db.Uuid
+  inventoryId        String      @db.Uuid
+  itemTypeId         String      @db.Uuid
+  unitId             String      @db.Uuid
+  quantity           Decimal     @db.Decimal(14, 3)
+  returnedQuantity   Decimal     @default(0) @db.Decimal(14, 3)
+  lostQuantity       Decimal     @default(0) @db.Decimal(14, 3)
+  reconciliationNote String?
+  status             BatchStatus @default(DRAFT)
+  createdAt          DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime    @default(now()) @db.Timestamptz(6)
+  createdBy          User        @relation(fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  event              Event       @relation(fields: [eventId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  itemType           ItemType    @relation(fields: [itemTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  unit               Unit        @relation(fields: [unitId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inventory          Inventory   @relation(fields: [inventoryId, eventId, itemTypeId, unitId], references: [id, eventId, itemTypeId, unitId], onDelete: NoAction, onUpdate: NoAction, map: "fk_batch_inventory")
+  donations          Donation[]
+  assignments        TripBatch[]
+
+  @@unique([id, eventId, itemTypeId, unitId], map: "uq_batch_composite")
+  @@unique([id, eventId], map: "uq_batch_id_event")
+  @@index([eventId, status], map: "idx_batches_event_status")
+  @@map("batches")
+}
+
+model Trip {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripCode       String               @unique @db.VarChar(60)
+  eventId        String               @db.Uuid
+  createdById    String               @db.Uuid
+  departurePoint String
+  departureDate  DateTime             @db.Timestamptz(6)
+  vehicle        String?              @db.VarChar(150)
+  status         TripStatus           @default(SCHEDULED)
+  completedAt    DateTime?            @db.Timestamptz(6)
+  createdAt      DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime             @default(now()) @db.Timestamptz(6)
+  points         DistributionPoint[]
+  records        DistributionRecord[]
+  evidence       Evidence[]
+  batches        TripBatch[]
+  volunteers     TripVolunteer[]
+  createdBy      User                 @relation(fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  event          Event                @relation(fields: [eventId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id, eventId], map: "uq_trips_id_event")
+  @@index([eventId, status], map: "idx_trips_event_status")
+  @@map("trips")
+}
+
+model TripVolunteer {
+  id            String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripId        String               @db.Uuid
+  eventId       String               @db.Uuid
+  applicationId String               @db.Uuid
+  role          TripVolunteerRole    @default(MEMBER)
+  assignedAt    DateTime             @default(now()) @db.Timestamptz(6)
+  application   VolunteerApplication @relation(fields: [applicationId, eventId], references: [id, eventId], onDelete: NoAction, onUpdate: NoAction, map: "fk_trip_volunteers_application")
+  trip          Trip                 @relation(fields: [tripId, eventId], references: [id, eventId], onDelete: NoAction, onUpdate: NoAction, map: "fk_trip_volunteers_trip")
+
+  @@unique([tripId, applicationId], map: "uq_trip_volunteer_application")
+  @@index([tripId], map: "idx_trip_volunteers_trip")
+  @@map("trip_volunteers")
+}
+
+model TripBatch {
+  id           String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripId       String               @db.Uuid
+  batchId      String               @db.Uuid
+  eventId      String               @db.Uuid
+  assignedAt   DateTime             @default(now()) @db.Timestamptz(6)
+  unassignedAt DateTime?            @db.Timestamptz(6)
+  records      DistributionRecord[]
+  batch        Batch                @relation(fields: [batchId, eventId], references: [id, eventId], onDelete: NoAction, onUpdate: NoAction, map: "fk_trip_batches_batch")
+  trip         Trip                 @relation(fields: [tripId, eventId], references: [id, eventId], onDelete: NoAction, onUpdate: NoAction, map: "fk_trip_batches_trip")
+
+  @@unique([id, tripId], map: "uq_trip_batch_id_trip")
+  @@unique([tripId, batchId], map: "uq_trip_batch_pair")
+  @@index([tripId], map: "idx_trip_batches_trip")
+  @@map("trip_batches")
+}
+
+model DistributionPoint {
+  id            String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripId        String                  @db.Uuid
+  position      Int
+  name          String                  @db.VarChar(200)
+  location      String
+  mapUrl        String?
+  status        DistributionPointStatus @default(PENDING)
+  arrivedAt     DateTime?               @db.Timestamptz(6)
+  distributedAt DateTime?               @db.Timestamptz(6)
+  skippedReason String?
+  trip          Trip                    @relation(fields: [tripId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  records       DistributionRecord[]
+  evidence      Evidence[]
+
+  @@unique([id, tripId], map: "uq_distribution_point_id_trip")
+  @@unique([tripId, position], map: "uq_distribution_point_position")
+  @@map("distribution_points")
+}
+
+model DistributionRecord {
+  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripId              String            @db.Uuid
+  tripBatchId         String            @db.Uuid
+  distributionPointId String            @db.Uuid
+  distributedQuantity Decimal           @db.Decimal(14, 3)
+  beneficiaryCount    Int               @default(0)
+  notes               String?
+  confirmedById       String            @db.Uuid
+  confirmedAt         DateTime          @default(now()) @db.Timestamptz(6)
+  confirmedBy         User              @relation(fields: [confirmedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tripBatch           TripBatch         @relation(fields: [tripBatchId, tripId], references: [id, tripId], onDelete: NoAction, onUpdate: NoAction, map: "fk_distribution_record_batch")
+  point               DistributionPoint @relation(fields: [distributionPointId, tripId], references: [id, tripId], onDelete: NoAction, onUpdate: NoAction, map: "fk_distribution_record_point")
+  trip                Trip              @relation(fields: [tripId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_distribution_record_trip")
+  evidence            Evidence[]
+
+  @@unique([tripBatchId, distributionPointId], map: "uq_distribution_batch_point")
+  @@unique([id, tripId, distributionPointId], map: "uq_distribution_record_composite")
+  @@index([distributionPointId], map: "idx_distribution_records_point")
+  @@map("distribution_records")
+}
+
+model Evidence {
+  id                   String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripId               String               @db.Uuid
+  distributionPointId  String               @db.Uuid
+  distributionRecordId String?              @db.Uuid
+  uploadedById         String               @db.Uuid
+  imageUrl             String
+  mimeType             String               @db.VarChar(50)
+  sizeBytes            Int
+  caption              String?
+  privacyConfirmed     Boolean              @default(false)
+  reviewStatus         EvidenceReviewStatus @default(PENDING)
+  reviewedById         String?              @db.Uuid
+  reviewedAt           DateTime?            @db.Timestamptz(6)
+  reviewNote           String?
+  uploadedAt           DateTime             @default(now()) @db.Timestamptz(6)
+  reviewedBy           User?                @relation("EvidenceReviewer", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  trip                 Trip                 @relation(fields: [tripId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  uploadedBy           User                 @relation("EvidenceUploader", fields: [uploadedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  point                DistributionPoint    @relation(fields: [distributionPointId, tripId], references: [id, tripId], onDelete: NoAction, onUpdate: NoAction, map: "fk_evidence_point")
+  record               DistributionRecord?  @relation(fields: [distributionRecordId, tripId, distributionPointId], references: [id, tripId, distributionPointId], onDelete: NoAction, onUpdate: NoAction, map: "fk_evidence_record")
+  logs                 TransparencyLog[]
+
+  @@index([tripId, reviewStatus], map: "idx_evidence_trip_review")
+  @@map("evidence")
+}
+
+model TransparencyLog {
+  id         String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId    String?                @db.Uuid
+  action     String                 @db.VarChar(80)
+  entityType TransparencyEntityType
+  entityId   String                 @db.Uuid
+  actorId    String                 @db.Uuid
+  oldStatus  String?                @db.VarChar(40)
+  newStatus  String?                @db.VarChar(40)
+  evidenceId String?                @db.Uuid
+  details    Json                   @default("{}")
+  isPublic   Boolean                @default(false)
+  createdAt  DateTime               @default(now()) @db.Timestamptz(6)
+  actor      User                   @relation(fields: [actorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  event      Event?                 @relation(fields: [eventId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  evidence   Evidence?              @relation(fields: [evidenceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([actorId, createdAt(sort: Desc)], map: "idx_transparency_actor_timeline")
+  @@index([entityType, entityId, createdAt(sort: Desc)], map: "idx_transparency_entity_timeline")
+  @@index([eventId, createdAt(sort: Desc)], map: "idx_transparency_event_timeline")
+  @@map("transparency_logs")
 }
 
 enum SystemRole {
@@ -62,8 +499,8 @@ enum TripStatus {
 }
 
 enum TripVolunteerRole {
-  LEADER
   MEMBER
+  LEADER
 }
 
 enum DistributionPointStatus {
@@ -80,6 +517,7 @@ enum EvidenceReviewStatus {
 }
 
 enum TransparencyEntityType {
+  USER
   ORGANIZATION
   EVENT
   VOLUNTEER_APPLICATION
@@ -90,405 +528,4 @@ enum TransparencyEntityType {
   DISTRIBUTION_POINT
   DISTRIBUTION_RECORD
   EVIDENCE
-}
-
-model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
-  passwordHash String
-  fullName     String
-  phoneNumber  String?
-  avatarUrl    String?
-  systemRole   SystemRole @default(USER)
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  memberships           OrganizationMember[]
-  donations             Donation[]
-  volunteerApplications VolunteerApplication[]
-  distributionRecords   DistributionRecord[]
-  uploadedEvidence      Evidence[]             @relation("EvidenceUploader")
-  reviewedEvidence      Evidence[]             @relation("EvidenceReviewer")
-  logs                  TransparencyLog[]
-
-  @@map("users")
-}
-
-model Organization {
-  id          String    @id @default(uuid())
-  name        String
-  code        String    @unique
-  description String?
-  email       String
-  phoneNumber String?
-  address     String?
-  status      OrgStatus @default(PENDING)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  members OrganizationMember[]
-  events  Event[]
-
-  @@map("organizations")
-}
-
-model OrganizationMember {
-  id             String           @id @default(uuid())
-  userId         String
-  organizationId String
-  role           OrganizationRole @default(MEMBER)
-  createdAt      DateTime         @default(now())
-
-  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-
-  @@unique([userId, organizationId])
-  @@index([organizationId, role])
-  @@map("organization_members")
-}
-
-model Event {
-  id             String      @id @default(uuid())
-  organizationId String
-  title          String
-  description    String?
-  location       String
-  contactName    String
-  contactPhone   String?
-  startDate      DateTime
-  endDate        DateTime?
-  status         EventStatus @default(DRAFT)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-
-  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  volunteerRoles        VolunteerRole[]
-  volunteerApplications VolunteerApplication[]
-  donationNeeds         DonationNeed[]
-  donations             Donation[]
-  inventory             Inventory[]
-  batches               Batch[]
-  trips                 Trip[]
-
-  @@index([organizationId, status])
-  @@index([status, startDate])
-  @@map("events")
-}
-
-model VolunteerRole {
-  id          String   @id @default(uuid())
-  eventId     String
-  name        String
-  description String?
-  quantity    Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  event        Event                  @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  applications VolunteerApplication[]
-
-  @@unique([id, eventId])
-  @@unique([eventId, name])
-  @@map("volunteer_roles")
-}
-
-model VolunteerApplication {
-  id              String                     @id @default(uuid())
-  eventId         String
-  userId          String
-  volunteerRoleId String
-  status          VolunteerApplicationStatus @default(PENDING)
-  notes           String?
-  createdAt       DateTime                   @default(now())
-  updatedAt       DateTime                   @updatedAt
-
-  event           Event                @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  user            User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
-  volunteerRole   VolunteerRole        @relation(fields: [volunteerRoleId, eventId], references: [id, eventId], onDelete: Restrict)
-  attendance      VolunteerAttendance?
-  tripAssignments TripVolunteer[]
-
-  @@unique([eventId, userId])
-  @@unique([id, eventId])
-  @@index([userId, status])
-  @@map("volunteer_applications")
-}
-
-model VolunteerAttendance {
-  id            String    @id @default(uuid())
-  applicationId String    @unique
-  checkedInAt   DateTime
-  checkedOutAt  DateTime?
-
-  application VolunteerApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
-
-  @@map("volunteer_attendance")
-}
-
-// Standard catalogs avoid treating variations of a label as different goods/units.
-model ItemType {
-  id       String @id @default(uuid())
-  code     String @unique
-  name     String
-  category String
-
-  needs     DonationNeed[]
-  inventory Inventory[]
-
-  @@map("item_types")
-}
-
-model Unit {
-  id   String @id @default(uuid())
-  code String @unique
-  name String
-
-  needs     DonationNeed[]
-  inventory Inventory[]
-
-  @@map("units")
-}
-
-model DonationNeed {
-  id             String  @id @default(uuid())
-  eventId        String
-  itemTypeId     String
-  unitId         String
-  targetQuantity Decimal @db.Decimal(14, 3)
-  notes          String?
-
-  event     Event      @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  itemType  ItemType   @relation(fields: [itemTypeId], references: [id], onDelete: Restrict)
-  unit      Unit       @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  donations Donation[]
-
-  @@unique([eventId, itemTypeId, unitId])
-  @@unique([id, eventId, itemTypeId, unitId])
-  @@map("donation_needs")
-}
-
-model Donation {
-  id              String         @id @default(uuid())
-  trackingId      String         @unique
-  eventId         String
-  donationNeedId  String
-  itemTypeId      String
-  unitId          String
-  donorId         String
-  // A single nullable FK implements the MVP rule: one Donation, at most one Batch.
-  batchId         String?
-  quantity        Decimal        @db.Decimal(14, 3)
-  photoUrl        String?
-  status          DonationStatus @default(PENDING)
-  receivedAt      DateTime?
-  rejectionReason String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-
-  event        Event        @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  donor        User         @relation(fields: [donorId], references: [id], onDelete: Restrict)
-  donationNeed DonationNeed @relation(fields: [donationNeedId, eventId, itemTypeId, unitId], references: [id, eventId, itemTypeId, unitId], onDelete: Restrict)
-  batch        Batch?       @relation(fields: [batchId, eventId, itemTypeId, unitId], references: [id, eventId, itemTypeId, unitId], onDelete: Restrict)
-
-  @@index([donorId, createdAt])
-  @@index([eventId, status])
-  @@index([batchId])
-  @@map("donations")
-}
-
-// Stock is earmarked for an Event. Organization stock is aggregated through Event.
-model Inventory {
-  id                  String   @id @default(uuid())
-  eventId             String
-  itemTypeId          String
-  unitId              String
-  receivedQuantity    Decimal  @default(0) @db.Decimal(14, 3)
-  availableQuantity   Decimal  @default(0) @db.Decimal(14, 3)
-  reservedQuantity    Decimal  @default(0) @db.Decimal(14, 3)
-  distributedQuantity Decimal  @default(0) @db.Decimal(14, 3)
-  lostQuantity        Decimal  @default(0) @db.Decimal(14, 3)
-  updatedAt           DateTime @updatedAt
-
-  event    Event    @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  itemType ItemType @relation(fields: [itemTypeId], references: [id], onDelete: Restrict)
-  unit     Unit     @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  batches  Batch[]
-
-  @@unique([eventId, itemTypeId, unitId])
-  @@unique([id, eventId, itemTypeId, unitId])
-  @@map("inventories")
-}
-
-model Batch {
-  id                 String      @id @default(uuid())
-  batchCode          String      @unique
-  eventId            String
-  inventoryId        String
-  itemTypeId         String
-  unitId             String
-  quantity           Decimal     @db.Decimal(14, 3)
-  returnedQuantity   Decimal     @default(0) @db.Decimal(14, 3)
-  lostQuantity       Decimal     @default(0) @db.Decimal(14, 3)
-  reconciliationNote String?
-  status             BatchStatus @default(DRAFT)
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
-
-  event       Event       @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  inventory   Inventory   @relation(fields: [inventoryId, eventId, itemTypeId, unitId], references: [id, eventId, itemTypeId, unitId], onDelete: Restrict)
-  donations   Donation[]
-  assignments TripBatch[]
-
-  @@unique([id, eventId])
-  @@unique([id, eventId, itemTypeId, unitId])
-  @@index([eventId, status])
-  @@map("batches")
-}
-
-model Trip {
-  id             String     @id @default(uuid())
-  tripCode       String     @unique
-  eventId        String
-  departurePoint String
-  departureDate  DateTime
-  vehicle        String?
-  status         TripStatus @default(SCHEDULED)
-  completedAt    DateTime?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-
-  event      Event                @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  volunteers TripVolunteer[]
-  batches    TripBatch[]
-  points     DistributionPoint[]
-  records    DistributionRecord[]
-  evidence   Evidence[]
-
-  @@unique([id, eventId])
-  @@index([eventId, status])
-  @@map("trips")
-}
-
-model TripVolunteer {
-  id            String            @id @default(uuid())
-  tripId        String
-  eventId       String
-  applicationId String
-  role          TripVolunteerRole @default(MEMBER)
-  assignedAt    DateTime          @default(now())
-
-  trip        Trip                 @relation(fields: [tripId, eventId], references: [id, eventId], onDelete: Restrict)
-  application VolunteerApplication @relation(fields: [applicationId, eventId], references: [id, eventId], onDelete: Restrict)
-
-  @@unique([tripId, applicationId])
-  @@map("trip_volunteers")
-}
-
-model TripBatch {
-  id           String    @id @default(uuid())
-  tripId       String
-  batchId      String
-  eventId      String
-  assignedAt   DateTime  @default(now())
-  // Preserve cancelled-trip history. A partial unique index protects active assignments.
-  unassignedAt DateTime?
-
-  trip    Trip                 @relation(fields: [tripId, eventId], references: [id, eventId], onDelete: Restrict)
-  batch   Batch                @relation(fields: [batchId, eventId], references: [id, eventId], onDelete: Restrict)
-  records DistributionRecord[]
-
-  @@unique([tripId, batchId])
-  @@unique([id, tripId])
-  @@map("trip_batches")
-}
-
-model DistributionPoint {
-  id            String                  @id @default(uuid())
-  tripId        String
-  position      Int
-  name          String
-  location      String
-  mapUrl        String?
-  status        DistributionPointStatus @default(PENDING)
-  arrivedAt     DateTime?
-  distributedAt DateTime?
-  skippedReason String?
-
-  trip     Trip                 @relation(fields: [tripId], references: [id], onDelete: Restrict)
-  records  DistributionRecord[]
-  evidence Evidence[]
-
-  @@unique([tripId, position])
-  @@unique([id, tripId])
-  @@map("distribution_points")
-}
-
-model DistributionRecord {
-  id                  String   @id @default(uuid())
-  tripId              String
-  tripBatchId         String
-  distributionPointId String
-  distributedQuantity Decimal  @db.Decimal(14, 3)
-  beneficiaryCount    Int      @default(0)
-  notes               String?
-  confirmedById       String
-  confirmedAt         DateTime @default(now())
-
-  trip        Trip              @relation(fields: [tripId], references: [id], onDelete: Restrict)
-  tripBatch   TripBatch         @relation(fields: [tripBatchId, tripId], references: [id, tripId], onDelete: Restrict)
-  point       DistributionPoint @relation(fields: [distributionPointId, tripId], references: [id, tripId], onDelete: Restrict)
-  confirmedBy User              @relation(fields: [confirmedById], references: [id], onDelete: Restrict)
-  evidence    Evidence[]
-
-  @@unique([tripBatchId, distributionPointId])
-  @@unique([id, tripId, distributionPointId])
-  @@map("distribution_records")
-}
-
-model Evidence {
-  id                   String               @id @default(uuid())
-  tripId               String
-  distributionPointId  String
-  distributionRecordId String?
-  uploadedById         String
-  imageUrl             String
-  mimeType             String
-  sizeBytes            Int
-  caption              String?
-  privacyConfirmed     Boolean              @default(false)
-  reviewStatus         EvidenceReviewStatus @default(PENDING)
-  reviewedById         String?
-  reviewedAt           DateTime?
-  reviewNote           String?
-  uploadedAt           DateTime             @default(now())
-
-  trip       Trip                @relation(fields: [tripId], references: [id], onDelete: Restrict)
-  point      DistributionPoint   @relation(fields: [distributionPointId, tripId], references: [id, tripId], onDelete: Restrict)
-  record     DistributionRecord? @relation(fields: [distributionRecordId, tripId, distributionPointId], references: [id, tripId, distributionPointId], onDelete: Restrict)
-  uploadedBy User                @relation("EvidenceUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
-  reviewedBy User?               @relation("EvidenceReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
-  logs       TransparencyLog[]
-
-  @@index([tripId, reviewStatus])
-  @@map("evidence")
-}
-
-model TransparencyLog {
-  id         String                 @id @default(uuid())
-  action     String
-  entityType TransparencyEntityType
-  entityId   String
-  actorId    String
-  oldStatus  String?
-  newStatus  String?
-  evidenceId String?
-  details    Json?
-  createdAt  DateTime               @default(now())
-
-  actor    User      @relation(fields: [actorId], references: [id], onDelete: Restrict)
-  evidence Evidence? @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
-
-  @@index([entityType, entityId, createdAt])
-  @@map("transparency_logs")
 }

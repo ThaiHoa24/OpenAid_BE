@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { isUUID } from 'class-validator';
 import { PrismaService } from '../../../database/prisma.service.js';
 
 export interface JwtPayload {
@@ -24,6 +25,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
+    if (!payload || typeof payload.sub !== 'string' || !isUUID(payload.sub)) {
+      throw new UnauthorizedException('Invalid token subject');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
     });

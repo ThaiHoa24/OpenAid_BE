@@ -134,11 +134,34 @@ Ví dụ: Git báo `CONFLICT (content): Merge conflict in src/...`.
 | Tình huống | Quy tắc nhóm |
 | --- | --- |
 | Hai người cùng sửa một module/file | Thông báo trong nhóm và thống nhất ai sửa phần nào trước. |
-| Thay đổi database schema/migration | Thông báo trước, ghi rõ thứ tự migration và cách chạy sau khi pull. |
+| Thay đổi database schema/migration | Thông báo trước, ghi rõ nội dung thay đổi schema và cách chạy sau khi pull. |
 | Thêm biến môi trường | Chỉ cập nhật `.env.example`/tài liệu; **không commit `.env` chứa secret**. |
 | Sửa API dùng chung giữa FE/BE | Báo endpoint/DTO/response mới và thời điểm merge. |
 | PR lớn, kéo dài nhiều ngày | Chia nhỏ PR; thường xuyên merge `origin/main` vào nhánh công việc. |
 | Có lỗi sau khi merge | Báo nhóm ngay; tạo nhánh `ten/fix-...` để sửa qua PR, không âm thầm push thẳng `main`. |
+
+### Quy trình chuẩn khi làm việc với Database (Prisma Migration)
+
+Dự án đã thiết lập hệ thống **Prisma Migration** chính thức. Để tránh xung đột database giữa các thành viên:
+
+1. **Khi bạn cần sửa/thêm bảng, cột, quan hệ:**
+   - **Bước 1:** Chỉ chỉnh sửa trong [`prisma/schema.prisma`](prisma/schema.prisma).
+   - **Bước 2:** Chạy lệnh tạo migration tự động:
+     ```bash
+     npx prisma migrate dev --name <ten_mo_ta_ngan_gon>
+     ```
+     *(Ví dụ: `npx prisma migrate dev --name add_avatar_url_to_users`)*
+   - **Bước 3:** Kiểm tra lại bằng `npm run db:check`.
+   - **Bước 4:** Commit cả file `schema.prisma` lẫn thư mục migration mới được sinh ra trong `prisma/migrations/`.
+   - **Tuyệt đối không:** Tự ý chạy SQL sửa cấu trúc bảng ngoài DBeaver mà không qua Prisma migration, hoặc sửa đổi các file migration cũ đã được merge vào `main`.
+
+2. **Khi bạn pull code mới có migration từ đồng đội:**
+   - Sau khi merge code mới từ `main`, chạy:
+     ```bash
+     npm run prisma:migrate
+     npm run db:check
+     ```
+   - Prisma sẽ tự động áp dụng các migration mới vào database cục bộ của bạn và sinh lại Prisma Client đồng bộ.
 
 ## 6. Checklist trước mỗi PR
 

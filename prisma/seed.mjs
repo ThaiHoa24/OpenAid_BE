@@ -41,6 +41,9 @@ async function main() {
       });
     }
 
+    const admin = await tx.user.findUniqueOrThrow({
+      where: { email: 'admin@example.test' },
+    });
     const organizer = await tx.user.findUniqueOrThrow({
       where: { email: 'organizer@example.test' },
     });
@@ -49,10 +52,13 @@ async function main() {
       update: {},
       create: {
         id: ids.organization,
+        createdById: organizer.id,
         code: 'OPENAID-DEMO',
         name: 'OpenAid Demo Organization',
         email: 'contact@example.test',
         status: OrgStatus.APPROVED,
+        reviewedById: admin.id,
+        reviewedAt: new Date(),
       },
     });
     await tx.organizationMember.upsert({
@@ -98,6 +104,7 @@ async function main() {
         id: ids.event,
         organizationId: organization.id,
         title: 'Ho tro khu vuc lu Hoa Vang',
+        createdById: organizer.id,
         description:
           'Synthetic foundation data; end-to-end demo will be added with the use cases.',
         location: 'Hoa Vang, Da Nang',
