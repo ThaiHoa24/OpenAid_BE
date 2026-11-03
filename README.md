@@ -17,277 +17,249 @@ Backend cho **OpenAid – Transparent In-Kind Donation & Volunteer Coordination 
 
 ## Phạm vi và trạng thái triển khai
 
-OpenAid hướng tới ba nhóm nghiệp vụ: quản lý chiến dịch và tình nguyện viên; tiếp nhận hiện vật, quản lý tồn kho và đóng kiện; điều phối chuyến phân phối, lưu bằng chứng và tra cứu hành trình đóng góp bằng Tracking ID.
+OpenAid hướng tới ba nhóm nghiệp vụ chính: quản lý chiến dịch và tình nguyện viên; tiếp nhận hiện vật, quản lý tồn kho và đóng kiện (Batch); điều phối chuyến phân phối, lưu bằng chứng và tra cứu hành trình đóng góp bằng Tracking ID.
 
-**Repository hiện ở giai đoạn xây dựng nền tảng, chưa có luồng nghiệp vụ hoàn chỉnh từ đầu đến cuối.**
+### Trạng thái tính năng hiện tại
 
-| Thành phần         | Trạng thái hiện tại                                                                                                                                                                                                                     |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tài khoản và hồ sơ | Đã có xử lý đăng ký, đăng nhập, phát JWT, xem và cập nhật hồ sơ cá nhân.                                                                                                                                                                |
-| Hạ tầng HTTP       | Đã có JWT guard và system-role guard toàn cục, validation DTO, CORS, định dạng response, xử lý lỗi, Swagger và liveness endpoint.                                                                                                       |
-| Cơ sở dữ liệu      | PostgreSQL `openaid` gồm 20 bảng, UUID và TIMESTAMPTZ. Đã thiết lập hoàn tất baseline migration (`20261028000000_init`) và đồng bộ hoàn toàn với Prisma schema.                                 |
-| Module nghiệp vụ   | Đã có route, DTO, controller và service khung cho tổ chức, chiến dịch, tình nguyện viên, quyên góp, kho, kiện hàng, chuyến xe, cấp phát, bằng chứng, minh bạch, dashboard và quản trị. Các use case này đang trả `501 Not Implemented`. |
-| Lưu trữ ảnh        | Đã có interface và service placeholder; lưu/xóa tệp chưa được triển khai.                                                                                                                                                               |
-| Kiểm thử           | Có unit test tiện ích/xác thực, HTTP smoke test và bộ kiểm tra tài khoản trên PostgreSQL test riêng. Các kịch bản tích hợp nghiệp vụ còn là `it.todo`.                                                                                  |
+| Thành phần | Trạng thái triển khai | Chi tiết |
+| --- | :---: | --- |
+| **Xác thực (Authentication)** | **Hoàn thành** | Đăng ký, đăng nhập, chuẩn hóa email không phân biệt hoa/thường, mã hóa mật khẩu với `bcrypt`, cấp phát và xác thực JWT Bearer token. |
+| **Hồ sơ & Context User** | **Hoàn thành** | Xem/cập nhật hồ sơ cá nhân (`/api/users/profile`), tra cứu danh sách tổ chức và vai trò đang tham gia (`/api/users/memberships`). |
+| **Phân quyền 2 tầng (RBAC)** | **Hoàn thành** | <ul><li>**Cấp hệ thống:** `SystemRole` (`USER`, `ADMIN`) bảo vệ bởi `RolesGuard` toàn cục. Đọc role trực tiếp từ database, chống giả mạo token.</li><li>**Cấp tổ chức:** `OrganizationRole` (`MEMBER`, `ORGANIZER`) bảo vệ bởi `OrganizationAccessService`. Chỉ `ORGANIZER` của tổ chức mới được chỉnh sửa hoặc quản lý thành viên.</li></ul> |
+| **Quản lý Tổ chức (Organizations)** | **Hoàn thành** | Xem danh sách/chi tiết tổ chức (công khai); Tạo tổ chức kèm tự động gán quyền `ORGANIZER` cho người tạo trong transaction; Cập nhật thông tin và thêm thành viên có kiểm tra quyền `ORGANIZER`. |
+| **Quản trị hệ thống (Admin Console)** | **Hoàn thành** | Danh sách tổ chức chờ duyệt, phê duyệt/từ chối tổ chức, xem danh sách người dùng, bật/tắt trạng thái hoạt động tài khoản. Khóa nghiêm ngặt bởi `@Roles(SystemRole.ADMIN)`. |
+| **Hạ tầng HTTP & Kiến trúc** | **Hoàn thành** | Modular Monolith (16 modules), validation pipe toàn cục, Transform Interceptor chuẩn hóa response envelope, AllExceptionsFilter, Swagger UI, Liveness endpoint (`/api/health/live`). |
+| **Cơ sở dữ liệu** | **Hoàn thành** | PostgreSQL `openaid` gồm 20 models, 12 enums, UUID `gen_random_uuid()`, `TIMESTAMPTZ`. Baseline migration (`20261028000000_init`) và Prisma schema đồng bộ 100%. |
+| **Các luồng nghiệp vụ còn lại** | Đang phát triển (Scaffold) | Chiến dịch (Events), Tình nguyện viên (Volunteers), Quyên góp (Donations), Kho (Inventory), Kiện hàng (Batches), Chuyến xe (Trips), Cấp phát (Distribution), Bằng chứng (Evidence), Minh bạch (Transparency), Báo cáo (Dashboard). |
+| **Kiểm thử tự động** | **Hoàn thành** | <ul><li>**Unit tests:** 7/7 tests passed (tiện ích và logic đăng ký).</li><li>**E2E Integration tests:** 18/18 tests passed trong `test/auth.e2e-spec.ts` kiểm chứng toàn diện Auth và RBAC (chặn USER thường truy cập trái phép chức năng ADMIN/ORGANIZER).</li><li>**Smoke tests:** 12/12 tests passed trong `test/scaffold.e2e-spec.ts`.</li></ul> |
 
-Các endpoint khung gọi `featureNotImplemented()` với mã yêu cầu FR cần triển khai. Request vẫn có thể bị từ chối bởi xác thực, phân quyền hoặc validation trước khi tới service.
+---
+
+## Mô hình Phân quyền (RBAC Architecture)
+
+Hệ thống tuân thủ nghiêm ngặt nguyên tắc **RBAC 2 tầng** được định tả trong [Tài liệu Kiến trúc](docs/architecture.md) và [API Contract](docs/API_contract/API_CONTRACT_OpenAid.md):
+
+```text
+1. SYSTEM-LEVEL ROLE (Toàn hệ thống - Lưu tại User.systemRole)
+   ├── USER  : Người dùng thông thường, có thể quyên góp, ứng tuyển tình nguyện viên và tạo tổ chức.
+   └── ADMIN : Quản trị viên nền tảng, duyệt tổ chức, quản lý tài khoản, moderation hệ thống.
+
+2. ORGANIZATION-LEVEL ROLE (Theo phạm vi tổ chức - Lưu tại OrganizationMember.role)
+   ├── MEMBER    : Thành viên của tổ chức, tham gia các hoạt động thông thường.
+   └── ORGANIZER : Trưởng ban tổ chức, có quyền quản lý thông tin tổ chức, duyệt chiến dịch, kho và chuyến xe.
+
+* Lưu ý: "DONOR" và "VOLUNTEER" KHÔNG PHẢI là system role, mà là hành vi tham gia của USER trong từng sự kiện.
+```
+
+---
 
 ## Công nghệ sử dụng
 
-Các phiên bản chính dưới đây theo khai báo trong `package.json` và image trong `compose.yaml`:
+| Thành phần | Công nghệ |
+| --- | --- |
+| Runtime | Node.js >= 22, npm |
+| Ngôn ngữ | TypeScript 6, native ESM (`"type": "module"`) |
+| Framework | NestJS 12, Express |
+| Database / ORM | PostgreSQL, Prisma 6 (`@prisma/client`) |
+| Xác thực & Bảo mật | Passport JWT, bcrypt (hashing 10 rounds), `RolesGuard`, `OrganizationAccessService` |
+| Validation / Docs | `class-validator`, `class-transformer`, `@nestjs/swagger` |
+| Kiểm thử | Vitest 4, Supertest 7 |
+| Code quality | Oxlint, Prettier |
+| Container / CI | Docker, Docker Compose, GitHub Actions |
 
-| Thành phần            | Công nghệ                                                                 |
-| --------------------- | ------------------------------------------------------------------------- |
-| Runtime               | Node.js >= 22, npm                                                        |
-| Ngôn ngữ              | TypeScript 6, native ESM (`"type": "module"`)                             |
-| Framework             | NestJS 12, Express                                                        |
-| Database / ORM        | PostgreSQL, Prisma 6 (`@prisma/client`); image Compose dùng PostgreSQL 16 |
-| Xác thực              | Passport JWT, bcrypt                                                      |
-| Validation / API docs | `class-validator`, `class-transformer`, `@nestjs/swagger`                 |
-| Kiểm thử              | Vitest 4, Supertest 7, coverage V8                                        |
-| Chất lượng mã nguồn   | Oxlint, Prettier                                                          |
-| Container / CI        | Docker Compose, GitHub Actions                                            |
+---
 
-## Cấu trúc dự án
+## Cấu trúc thư mục
 
 ```text
 OpenAid_BE/
-├── .github/workflows/ci.yml    # Validate schema, build, lint, unit test và E2E
-├── docs/                       # Đặc tả, API contract và tài liệu kiến trúc
-│   ├── API_contract/
-│   ├── diagrams/
-│   ├── architecture.md
-│   ├── PRODUCT_BACKLOG.md
-│   ├── SRS_OpenAid.md
-│   └── C1SE.102_ProjectProposal.docx
+├── .github/workflows/ci.yml    # Pipeline CI: validate schema, build, lint, test
+├── docs/                       # Tài liệu đồ án và đặc tả kỹ thuật
+│   ├── API_contract/           # API_CONTRACT_OpenAid.md - Hợp đồng tích hợp FE/BE
+│   ├── diagrams/               # Bộ sơ đồ kiến trúc, use case, ERD, data flow
+│   ├── architecture.md         # Tài liệu kiến trúc Modular Monolith
+│   ├── PRODUCT_BACKLOG.md      # Danh sách backlog theo chuẩn Scrum
+│   ├── SRS_OpenAid.md          # Đặc tả yêu cầu phần mềm chi tiết
+│   └── C1SE.102_ProjectProposal.docx # Đề cương đồ án Capstone 1
 ├── prisma/
-│   ├── migrations/             # Baseline migration (20261028000000_init) chuẩn hóa cho DB openaid
-│   ├── schema.prisma           # 20 models, 12 enums và các quan hệ dữ liệu
-│   └── seed.mjs                # Script thực thi bởi npm run prisma:seed
-├── scripts/check-db.mjs        # Kiểm tra kết nối và so sánh schema, chỉ đọc DB
+│   ├── migrations/             # Baseline migration (20261028000000_init)
+│   ├── schema.prisma           # 20 models, 12 enums, ràng buộc quan hệ
+│   └── seed.mjs                # Script nạp dữ liệu nền tảng mẫu
+├── scripts/check-db.mjs        # Script kiểm tra kết nối DB và tính khớp schema
 ├── src/
-│   ├── common/                 # Decorator, guard, DTO, filter, interceptor, pipe, utils
-│   ├── config/                 # Cấu hình và kiểm tra biến môi trường
+│   ├── common/                 # Guards, decorators (@Roles, @Public, @CurrentUser), filters, interceptors
+│   ├── config/                 # Cấu hình môi trường và env validation
 │   ├── database/               # PrismaModule, PrismaService
-│   ├── modules/                # 16 module nghiệp vụ và kỹ thuật
-│   │   ├── auth/               # Đăng ký, đăng nhập và JWT
-│   │   ├── users/              # Hồ sơ cá nhân
-│   │   ├── organizations/      # Tổ chức, thành viên và OrganizationAccessService
-│   │   ├── events/             # Chiến dịch, VolunteerRole và DonationNeed
-│   │   ├── volunteers/         # Ứng tuyển và điểm danh
-│   │   ├── donations/          # Quyên góp và Tracking ID
-│   │   ├── inventory/          # Kho theo Event, loại hàng và đơn vị
-│   │   ├── batches/            # Kiện hàng và liên kết Donation
-│   │   ├── trips/              # Chuyến xe, TripVolunteer và TripBatch
-│   │   ├── distribution/       # Điểm phân phối và bản ghi cấp phát
-│   │   ├── evidence/           # Metadata ảnh, xác nhận riêng tư và duyệt bằng chứng
-│   │   ├── storage/            # Interface lưu trữ tệp; adapter còn chờ triển khai
-│   │   ├── transparency/       # Tra cứu công khai và timeline
-│   │   ├── dashboard/          # Truy vấn tổng hợp; không có Report entity
-│   │   ├── admin/              # Quản trị tài khoản và duyệt tổ chức
-│   │   └── health/             # Liveness endpoint
-│   ├── app.module.ts           # Root module; storage được import qua evidence
-│   ├── bootstrap.ts            # HTTP setup dùng chung với smoke test
-│   └── main.ts                 # Entry point
+│   ├── modules/                # 16 module nghiệp vụ và hệ thống
+│   │   ├── auth/               # Đăng ký, đăng nhập, JWT strategy
+│   │   ├── users/              # Hồ sơ cá nhân, danh sách memberships
+│   │   ├── organizations/      # Quản lý tổ chức, thành viên, OrganizationAccessService
+│   │   ├── admin/              # Quản trị hệ thống, duyệt tổ chức, toggle user active
+│   │   ├── events/             # Chiến dịch thiện nguyện, vai trò TNV, nhu cầu quyên góp
+│   │   ├── volunteers/         # Ứng tuyển và điểm danh tình nguyện viên
+│   │   ├── donations/          # Đăng ký quyên góp và sinh Tracking ID
+│   │   ├── inventory/          # Quản lý kho theo chiến dịch, loại hàng và đơn vị
+│   │   ├── batches/            # Đóng kiện hàng từ các khoản quyên góp
+│   │   ├── trips/              # Chuyến xe phân phối và điều phối viên
+│   │   ├── distribution/       # Điểm phân phối và xác nhận số lượng thực tế
+│   │   ├── evidence/           # Bằng chứng hình ảnh, xác nhận quyền riêng tư
+│   │   ├── storage/            # Quản lý lưu trữ tệp (Local / Cloud Storage)
+│   │   ├── transparency/       # Tra cứu Tracking ID công khai, timeline minh bạch
+│   │   ├── dashboard/          # Thống kê số liệu chiến dịch
+│   │   └── health/             # Health check & Liveness endpoint
+│   ├── app.module.ts           # Root module
+│   ├── bootstrap.ts            # Cấu hình HTTP chung (CORS, Pipes, Interceptors, Swagger)
+│   └── main.ts                 # Bootstrap server
 ├── test/
-│   ├── scaffold.e2e-spec.ts    # HTTP smoke test với Prisma mock
-│   ├── postgres-compatibility.e2e-spec.ts # Kiểm tra tài khoản trên DB test riêng
-│   └── *.e2e-spec.ts           # Kịch bản tích hợp nghiệp vụ đang để TODO
-├── .env.example               # Mẫu cấu hình môi trường
-├── compose.yaml               # PostgreSQL và backend
-├── Dockerfile                 # Build nhiều giai đoạn, Node.js 22
-├── prisma.config.ts           # Đường dẫn schema, migrations và lệnh seed
-├── vitest.config.ts           # Unit test: src/**/*.spec.ts
-├── vitest.config.e2e.ts        # E2E: test/**/*.e2e-spec.ts
+│   ├── auth.e2e-spec.ts        # 18 test cases E2E cho Auth & RBAC (Done verification)
+│   ├── scaffold.e2e-spec.ts    # 12 smoke tests HTTP contracts & Swagger
+│   └── postgres-compatibility.e2e-spec.ts # Test tương thích PostgreSQL riêng
+├── compose.yaml               # Docker Compose: PostgreSQL + Backend
+├── Dockerfile                 # Multi-stage build Dockerfile
 ├── package.json
-└── CONTRIBUTING.md             # Quy trình Git/GitHub của nhóm
+└── CONTRIBUTING.md             # Quy định đóng góp mã nguồn của nhóm
 ```
 
-## Khởi chạy cục bộ
+---
+
+## Khởi chạy dự án cục bộ
 
 ### 1. Chuẩn bị môi trường
 
-- Node.js >= 22 và npm.
-- PostgreSQL đang chạy và database `openaid` đã được tạo bằng script SQL hiện tại.
-- Git để lấy mã nguồn.
+* Node.js >= 22 và npm.
+* PostgreSQL (phiên bản 14+ khuyến nghị).
 
-Chạy các lệnh dưới đây tại thư mục gốc của repository.
+### 2. Cấu hình biến môi trường
 
-### 2. Tạo cấu hình môi trường
-
-PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-macOS/Linux:
+Sao chép file cấu hình mẫu:
 
 ```bash
 cp .env.example .env
 ```
 
-Nếu đã có `.env`, cập nhật các giá trị cần thiết trong tệp đó. Mẫu cấu hình mặc định:
+*(Trên Windows PowerShell: `Copy-Item .env.example .env`)*
 
-| Biến                | Giá trị trong `.env.example`                                                                     | Ý nghĩa                                                        |
-| ------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| `PORT`              | `3001`                                                                                           | Cổng HTTP khi chạy backend cục bộ; cổng host khi chạy Compose. |
-| `NODE_ENV`          | `development`                                                                                    | Chấp nhận `development`, `production` hoặc `test`.             |
-| `DATABASE_URL`      | `postgresql://postgres:replace-with-your-postgres-password@localhost:5432/openaid?schema=public` | Kết nối PostgreSQL hiện có; thay mật khẩu bằng giá trị thực.   |
-| `JWT_SECRET`        | `replace-with-a-random-development-secret`                                                       | Khóa ký JWT; bắt buộc có và cần thay bằng giá trị riêng.       |
-| `JWT_EXPIRES_IN`    | `7d`                                                                                             | Thời hạn access token.                                         |
-| `FRONTEND_URL`      | `http://localhost:3000`                                                                          | Origin được phép gọi API qua CORS, có bật credentials.         |
-| `POSTGRES_USER`     | `openaid`                                                                                        | Tài khoản PostgreSQL dùng bởi Compose.                         |
-| `POSTGRES_PASSWORD` | `openaid_dev_password`                                                                           | Mật khẩu PostgreSQL dùng bởi Compose.                          |
-| `POSTGRES_DB`       | `openaid_db`                                                                                     | Tên database dùng bởi Compose.                                 |
-| `DB_PORT`           | `5433`                                                                                           | Cổng PostgreSQL trên máy host; cổng trong container là `5432`. |
+Cập nhật các thông số cần thiết trong file `.env`:
 
-Tên database phân biệt hoa thường: cấu hình hiện tại dùng `openaid`. Mật khẩu có ký tự đặc biệt cần mã hóa URL. Các biến `POSTGRES_*` và `DB_PORT` chỉ dùng cho database Compose riêng, không thay đổi PostgreSQL cài trên máy. Không commit `.env` chứa secret.
+| Biến | Mặc định | Mô tả |
+| --- | --- | --- |
+| `PORT` | `3001` | Cổng HTTP của server Backend |
+| `DATABASE_URL` | `postgresql://postgres:password@localhost:5432/openaid?schema=public` | Chuỗi kết nối PostgreSQL |
+| `JWT_SECRET` | `openaid_jwt_secret_key_caps1_2026` | Khóa bí mật dùng để ký và giải mã JWT token |
+| `JWT_EXPIRES_IN` | `7d` | Thời hạn hiệu lực của access token |
+| `FRONTEND_URL` | `http://localhost:3000` | Địa chỉ Frontend Next.js cho phép CORS |
 
-### 3. Cài dependencies
+### 3. Cài đặt thư viện
 
 ```bash
 npm ci
 ```
 
-Đảm bảo PostgreSQL đang hoạt động và tài khoản trong `DATABASE_URL` truy cập được database hiện có.
-
-### 4. Áp dụng Migration, sinh Client và nạp dữ liệu mẫu
-
-Dự án đã thiết lập baseline migration chuẩn hóa (`20261028000000_init`) tương thích hoàn toàn với PostgreSQL (UUID `gen_random_uuid()`, `TIMESTAMPTZ`, các quan hệ bảng).
-
-Để đồng bộ cấu trúc database và nạp dữ liệu nền tảng ban đầu:
+### 4. Áp dụng Migration & Dữ liệu mẫu
 
 ```bash
-# Áp dụng migration vào database và tự động sinh Prisma Client
+# Áp dụng migration vào database và sinh Prisma Client
 npx prisma migrate dev
 
-# Nạp dữ liệu mẫu (tài khoản demo, tổ chức mẫu, danh mục)
+# Nạp dữ liệu mẫu ban đầu (danh mục, đơn vị, tài khoản demo)
 npm run prisma:seed
 
-# Kiểm tra kết nối và tính toàn vẹn giữa DB và schema
+# Kiểm tra tính khớp giữa database và schema
 npm run db:check
 ```
 
-`db:check` kết nối bằng Prisma, hiển thị tên database/schema và so sánh database với `schema.prisma`. Khi lệnh báo `Database matches Prisma`, cơ sở dữ liệu đã hoàn toàn sẵn sàng.
-
-### 5. Chạy backend
+### 5. Chạy ứng dụng
 
 ```bash
+# Chế độ phát triển (Development watch mode)
 npm run start:dev
-```
 
-Prisma kết nối PostgreSQL khi ứng dụng khởi động. Bạn có thể sử dụng các tài khoản demo đã được nạp từ seed script để đăng nhập và kiểm thử API.
-
-| Thành phần   | Đường dẫn mặc định                      |
-| ------------ | --------------------------------------- |
-| API base URL | `http://localhost:3001/api`             |
-| Swagger UI   | `http://localhost:3001/api/docs`        |
-| OpenAPI JSON | `http://localhost:3001/api/docs-json`   |
-| Liveness     | `http://localhost:3001/api/health/live` |
-
-Để chạy bản build:
-
-```bash
+# Hoặc biên dịch và chạy bản Production
 npm run build
 npm run start:prod
 ```
 
-`npm run build` tự chạy `prisma generate` qua hook `prebuild`. Prisma Client nằm trong `node_modules` và được import từ `@prisma/client`. Build không tự migrate hoặc seed database.
+Địa chỉ dịch vụ sau khi khởi động:
+* **API Base URL:** `http://localhost:3001/api`
+* **Swagger API Documentation:** `http://localhost:3001/api/docs`
+* **OpenAPI Schema (JSON):** `http://localhost:3001/api/docs-json`
+* **Health Liveness:** `http://localhost:3001/api/health/live`
 
-## Dữ liệu seed
+---
 
-Lệnh `npm run prisma:seed` được cấu hình trong `prisma.config.ts` để chạy `node prisma/seed.mjs`. Script dùng `upsert`, có thể chạy lại và không đặt lại mật khẩu của tài khoản đã tồn tại.
+## Danh mục API đã hoạt động hoàn chỉnh
 
-| Email                    | Quyền hệ thống | Quyền tổ chức                          |
-| ------------------------ | -------------- | -------------------------------------- |
-| `admin@example.test`     | `ADMIN`        | Không được gán membership trong seed   |
-| `organizer@example.test` | `USER`         | `ORGANIZER` của tổ chức `OPENAID-DEMO` |
+Các API đã hoàn thiện logic nghiệp vụ, bảo vệ bởi RBAC và sẵn sàng cho Frontend tích hợp:
 
-Mật khẩu khi tạo mới hai tài khoản demo: `OpenAidDemo123!`. Các tài khoản này dành cho môi trường phát triển.
+| Nhóm | Method | Endpoint | Quyền truy cập | Chức năng |
+| --- | --- | --- | --- | --- |
+| **Auth** | `POST` | `/api/auth/register` | Công khai | Đăng ký tài khoản mới (mã hóa mật khẩu bằng bcrypt) |
+| **Auth** | `POST` | `/api/auth/login` | Công khai | Đăng nhập và nhận Bearer JWT Access Token |
+| **Users** | `GET` | `/api/users/profile` | Bearer JWT | Xem thông tin hồ sơ của tài khoản đang đăng nhập |
+| **Users** | `PATCH` | `/api/users/profile` | Bearer JWT | Cập nhật hồ sơ (họ tên, số điện thoại, avatar) |
+| **Users** | `GET` | `/api/users/memberships` | Bearer JWT | Tra cứu các tổ chức mà tài khoản đang là MEMBER hoặc ORGANIZER |
+| **Organizations** | `GET` | `/api/organizations` | Công khai | Lấy danh sách tổ chức thiện nguyện (hỗ trợ phân trang) |
+| **Organizations** | `GET` | `/api/organizations/:id` | Công khai | Xem chi tiết thông tin tổ chức |
+| **Organizations** | `POST` | `/api/organizations` | Bearer JWT | Tạo hồ sơ tổ chức mới (tự động gán quyền `ORGANIZER` cho người tạo) |
+| **Organizations** | `PATCH` | `/api/organizations/:id` | Bearer JWT + `ORGANIZER` | Cập nhật thông tin tổ chức (chỉ `ORGANIZER` của tổ chức được phép) |
+| **Organizations** | `POST` | `/api/organizations/:id/members` | Bearer JWT + `ORGANIZER` | Thêm thành viên vào tổ chức (chỉ `ORGANIZER` của tổ chức được phép) |
+| **Admin** | `GET` | `/api/admin/organizations/pending` | Bearer JWT + `ADMIN` | Danh sách tổ chức đang chờ duyệt kích hoạt hoạt động |
+| **Admin** | `PATCH` | `/api/admin/organizations/:id/review` | Bearer JWT + `ADMIN` | Phê duyệt hoặc từ chối trạng thái hoạt động của tổ chức |
+| **Admin** | `GET` | `/api/admin/users` | Bearer JWT + `ADMIN` | Danh sách tất cả người dùng trong hệ thống |
+| **Admin** | `PATCH` | `/api/admin/users/:id/active` | Bearer JWT + `ADMIN` | Khóa hoặc mở khóa tài khoản người dùng |
+| **Health** | `GET` | `/api/health/live` | Công khai | Kiểm tra tình trạng sống (Liveness) của Backend |
 
-Seed còn tạo tổ chức mẫu đã được duyệt, danh mục gạo/nước uống, đơn vị kg/chai, một Event ở trạng thái `DRAFT`, vị trí tình nguyện và nhu cầu quyên góp. Đây là dữ liệu nền tảng; chưa có dữ liệu demo cho toàn bộ luồng quyên góp và phân phối.
+> *Ghi chú: Các endpoint thuộc các miền Events, Volunteers, Donations, Inventory, Batches, Trips, Distribution, Evidence, Transparency, Dashboard đã có sẵn khung Route, DTO và Swagger Contract, đang trả về mã `501 Not Implemented` theo lộ trình phát triển của Sprint tiếp theo.*
 
-## Sử dụng API
+---
 
-Các route có logic hiện tại:
+## Chuẩn Response Envelope
 
-| Method  | Endpoint             | Xác thực   | Chức năng                                       |
-| ------- | -------------------- | ---------- | ----------------------------------------------- |
-| `POST`  | `/api/auth/register` | Công khai  | Đăng ký tài khoản                               |
-| `POST`  | `/api/auth/login`    | Công khai  | Đăng nhập và nhận access token                  |
-| `GET`   | `/api/users/profile` | Bearer JWT | Xem hồ sơ cá nhân                               |
-| `PATCH` | `/api/users/profile` | Bearer JWT | Cập nhật `fullName`, `phoneNumber`, `avatarUrl` |
-| `GET`   | `/api/health/live`   | Công khai  | Kiểm tra liveness của ứng dụng                  |
-
-Response đăng ký/đăng nhập chứa token tại `data.accessToken`. Gửi token bằng header `Authorization: Bearer <accessToken>` hoặc nhập vào nút **Authorize** trên Swagger.
-
-Ứng dụng dùng chung response envelope. Ví dụ `GET /api/health/live`:
+Mọi response thành công đều được chuẩn hóa qua `TransformInterceptor`:
 
 ```json
 {
   "success": true,
   "statusCode": 200,
-  "data": { "status": "ok" },
-  "timestamp": "2026-10-28T00:00:00.000Z"
+  "data": { ... },
+  "timestamp": "2026-11-03T13:40:00.000Z"
 }
 ```
 
-Response lỗi gồm `success: false`, `statusCode`, `timestamp`, `path` và `message`. Liveness chỉ trả trạng thái ứng dụng, không thực hiện truy vấn kiểm tra database.
+Mọi lỗi nghiệp vụ hoặc phân quyền đều trả về cấu trúc thống nhất qua `AllExceptionsFilter`:
 
-Các route nghiệp vụ khác hiện được công bố trong Swagger nhưng vẫn là khung chờ triển khai. Xem [API Contract](docs/API_contract/API_CONTRACT_OpenAid.md) để đối chiếu phạm vi tích hợp và [mã nguồn controller](src/modules/) để kiểm tra route hiện có.
+```json
+{
+  "success": false,
+  "statusCode": 403,
+  "timestamp": "2026-11-03T13:40:00.000Z",
+  "path": "/api/admin/users",
+  "message": "You do not have permission to access this resource"
+}
+```
 
-## Docker Compose tùy chọn
+---
 
-Compose gồm hai service `db` và `backend`, sử dụng database riêng với PostgreSQL cài trên máy. Muốn chạy bằng Compose, cần nạp schema SQL hiện tại vào database container hoặc hoàn tất baseline migration trước. Các lệnh Compose không tự sao chép cấu trúc hay dữ liệu từ `openaid` cục bộ.
+## Các lệnh kiểm thử & bảo trì mã nguồn
 
-Trong Compose, backend chạy ở cổng `3001` trong container và kết nối PostgreSQL bằng `db:5432`; `DATABASE_URL` được Compose tạo từ các biến `POSTGRES_*`. Cổng host mặc định là `3001` cho API và `5433` cho PostgreSQL. Volume `postgres_data` giữ dữ liệu database qua các lần khởi động lại container.
+| Lệnh | Ý nghĩa |
+| --- | --- |
+| `npm run lint` | Kiểm tra chất lượng và quy chuẩn code bằng Oxlint (0 errors, 0 warnings) |
+| `npm run format` | Định dạng code tự động bằng Prettier |
+| `npm run build` | Tự động chạy `prisma generate` và biên dịch NestJS sang `dist/` |
+| `npm test` | Chạy bộ Unit Tests bằng Vitest |
+| `npm run test:e2e` | Tự động build và chạy toàn bộ kịch bản E2E Integration Tests |
+| `npm run db:check` | Kiểm tra kết nối và độ tương thích giữa DB và Prisma |
 
-## Kiểm tra và scripts thường dùng
+---
 
-| Lệnh                      | Mục đích                                                     |
-| ------------------------- | ------------------------------------------------------------ |
-| `npm run start:dev`       | Chạy backend với watch mode                                  |
-| `npm run start:debug`     | Chạy backend với debugger và watch mode                      |
-| `npm run build`           | Sinh Prisma Client và biên dịch NestJS vào `dist/`           |
-| `npm run start:prod`      | Chạy `dist/main.js` sau khi build                            |
-| `npm run prisma:validate` | Kiểm tra cú pháp Prisma schema                               |
-| `npm run prisma:generate` | Sinh lại TypeScript Prisma Client                            |
-| `npm run prisma:migrate`  | Chạy migrate dev để áp dụng migration mới                    |
-| `npm run prisma:seed`     | Nạp dữ liệu nền tảng mẫu vào database                        |
-| `npm run db:check`        | Kiểm tra kết nối DB và so sánh cấu trúc Prisma, không ghi DB |
-| `npm run lint`            | Chạy Oxlint cho `src/` và `test/`                            |
-| `npm run format`          | Ghi lại định dạng các tệp TypeScript trong `src/` và `test/` |
-| `npm test`                | Chạy unit test bằng Vitest                                   |
-| `npm run test:watch`      | Chạy unit test ở watch mode                                  |
-| `npm run test:cov`        | Chạy unit test và xuất coverage                              |
-| `npm run test:e2e`        | Tự build qua hook `pretest:e2e`, sau đó chạy bộ E2E          |
+## Tài liệu tham khảo dự án
 
-CI tại `.github/workflows/ci.yml` dùng Node.js 22 và chạy `npm ci`, validate schema, build, lint, unit test và E2E khi push hoặc mở Pull Request.
-
-Smoke test trong `test/scaffold.e2e-spec.ts` dùng chung cấu hình HTTP với ứng dụng và thay `PrismaService` bằng mock, không cần PostgreSQL thật. Các test nghiệp vụ còn là TODO.
-
-`test/postgres-compatibility.e2e-spec.ts` kiểm tra đăng ký/đăng nhập, email không phân biệt hoa thường, đăng ký đồng thời, hồ sơ, UUID, trigger `updatedAt` và validation. Bộ này mặc định bỏ qua; chỉ ghi dữ liệu khi có `TEST_DATABASE_URL` trỏ tới database test riêng tên `openaid_test` hoặc `openaid_sync_test_<12 ký tự hex>`, đã có schema SQL hiện tại. Nó không dùng `DATABASE_URL` làm URL dự phòng và chỉ xóa tài khoản do chính lượt test tạo. Không trỏ biến test vào database đang sử dụng. CI hiện chưa cấp PostgreSQL cho bộ test này.
-
-## Phân quyền và nguyên tắc phát triển
-
-- `User.systemRole`: `USER` hoặc `ADMIN`. JWT strategy đọc lại tài khoản và quyền từ database; tài khoản không tồn tại hoặc bị khóa bị từ chối.
-- `OrganizationMember.role`: `MEMBER` hoặc `ORGANIZER`, giới hạn theo từng tổ chức. `OrganizationAccessService` đã có hàm kiểm tra Organizer và trạng thái tổ chức để dùng khi triển khai nghiệp vụ.
-- `TripVolunteer.role`: `LEADER` hoặc `MEMBER` trong một chuyến đi. Volunteer và Donor được xác định qua dữ liệu tham gia, không phải system role.
-- Route mặc định yêu cầu JWT; route công khai dùng `@Public()`. `@Roles()` chỉ kiểm tra system role. Quyền theo tổ chức và chuyến đi phải được kiểm tra trong use case tương ứng.
-- Khi bổ sung nghiệp vụ, controller nhận DTO, service điều phối phân quyền/trạng thái/transaction, repository đóng gói truy vấn. Lấy phạm vi tổ chức từ entity được thao tác trước khi kiểm tra quyền.
-- Số lượng hiện vật dùng `Decimal(14, 3)`. Migration SQL chứa các CHECK và partial unique index ngoài Prisma schema; cần giữ các ràng buộc này khi thay đổi database.
-
-Chi tiết ranh giới module, quy tắc dữ liệu và phần còn chờ triển khai nằm trong [tài liệu kiến trúc](docs/architecture.md).
-
-## Tài liệu dự án
-
-| Tài liệu                                                  | Nội dung                                                                                            |
-| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [CONTRIBUTING.md](CONTRIBUTING.md)                        | Quy định Git/GitHub, nhánh, commit, review và Pull Request của nhóm                                 |
-| [Product Backlog](docs/PRODUCT_BACKLOG.md)                | User stories, độ ưu tiên, tiêu chí chấp nhận và kế hoạch sprint                                     |
-| [SRS OpenAid](docs/SRS_OpenAid.md)                        | Yêu cầu chức năng, phi chức năng và phạm vi MVP                                                     |
-| [API Contract](docs/API_contract/API_CONTRACT_OpenAid.md) | Hợp đồng tích hợp Frontend/Backend và trạng thái endpoint                                           |
-| [Kiến trúc hệ thống](docs/architecture.md)                | Modular Monolith, ranh giới module, phân quyền và toàn vẹn dữ liệu                                  |
-| [Bộ sơ đồ hệ thống](docs/diagrams/README.md)              | System context, use case, kiến trúc, ERD, luồng nghiệp vụ, sequence, deployment và đối chiếu FR/API |
-| [Đề cương đồ án](docs/C1SE.102_ProjectProposal.docx)      | Đề xuất đồ án Capstone 1                                                                            |
+| Tài liệu | Đường dẫn | Nội dung tóm tắt |
+| --- | --- | --- |
+| **API Contract** | [docs/API_contract/API_CONTRACT_OpenAid.md](docs/API_contract/API_CONTRACT_OpenAid.md) | Đặc tả hợp đồng API chi tiết giữa Frontend và Backend |
+| **Kiến trúc hệ thống** | [docs/architecture.md](docs/architecture.md) | Thiết kế Modular Monolith, ranh giới domain, ràng buộc toàn vẹn |
+| **SRS Đặc tả yêu cầu** | [docs/SRS_OpenAid.md](docs/SRS_OpenAid.md) | Bảng đặc tả yêu cầu chức năng (FR) và phi chức năng (NFR) |
+| **Product Backlog** | [docs/PRODUCT_BACKLOG.md](docs/PRODUCT_BACKLOG.md) | Backlog đồ án, user stories, phân chia sprint |
+| **Bộ sơ đồ thiết kế** | [docs/diagrams/README.md](docs/diagrams/README.md) | Use case diagram, Sequence diagram, ERD database |
+| **Đề cương đồ án** | [docs/C1SE.102_ProjectProposal.docx](docs/C1SE.102_ProjectProposal.docx) | Hồ sơ proposal Capstone 1 phê duyệt bởi Duy Tan University |

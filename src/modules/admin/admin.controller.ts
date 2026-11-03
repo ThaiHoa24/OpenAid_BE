@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service.js';
 import { CurrentUser, Roles } from '../../common/decorators/index.js';
 import { SystemRole } from '../../common/enums/index.js';
@@ -9,10 +9,6 @@ import { ReviewOrganizationDto, SetUserActiveDto } from './dto/index.js';
 
 @ApiTags('Admin')
 @ApiBearerAuth('JWT-auth')
-@ApiResponse({
-  status: 501,
-  description: 'Scaffold: Admin use cases are pending.',
-})
 @Roles(SystemRole.ADMIN)
 @Controller('admin')
 export class AdminController {

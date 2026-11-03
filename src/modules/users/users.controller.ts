@@ -24,4 +24,11 @@ export class UsersController {
   ) {
     return this.usersService.updateProfile(userId, dto);
   }
+
+  @Get('memberships')
+  @ApiOperation({ summary: 'Get current user organization memberships' })
+  async getMemberships(@CurrentUser('id') userId: string) {
+    return this.usersService.getMemberships(userId);
+  }
 }
+

@@ -7,7 +7,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OrganizationsService } from './organizations.service.js';
 import { CreateOrganizationDto, UpdateOrganizationDto } from './dto/index.js';
 import { AddOrganizationMemberDto } from './dto/organization-member.dto.js';
@@ -16,10 +16,6 @@ import { PaginationDto } from '../../common/dto/pagination.dto.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 
 @ApiTags('Organizations')
-@ApiResponse({
-  status: 501,
-  description: 'Scaffold: Organization use cases are pending.',
-})
 @Controller('organizations')
 export class OrganizationsController {
   constructor(private readonly service: OrganizationsService) {}

@@ -1,37 +1,82 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import { PaginationDto } from '../../common/dto/pagination.dto.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
-import { featureNotImplemented } from '../../common/utils/feature-not-implemented.js';
 import { ReviewOrganizationDto, SetUserActiveDto } from './dto/index.js';
+import { OrgStatus } from '../../common/enums/index.js';
 
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getPendingOrganizations(_query: PaginationDto): Promise<never> {
-    return featureNotImplemented('FR24: pending Organization query');
+  async getPendingOrganizations(query: PaginationDto) {
+    return this.prisma.organization.findMany({
+      where: { status: OrgStatus.PENDING },
+      skip: query.skip,
+      take: query.take,
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   async reviewOrganization(
-    _actor: AuthenticatedUser,
-    _id: string,
-    _dto: ReviewOrganizationDto,
-  ): Promise<never> {
-    return featureNotImplemented(
-      'FR04/FR20/FR24: Organization approval/suspension and audit log',
-    );
+    actor: AuthenticatedUser,
+    id: string,
+    dto: ReviewOrganizationDto,
+  ) {
+    const org = await this.prisma.organization.findUnique({ where: { id } });
+    if (!org) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    return this.prisma.organization.update({
+      where: { id },
+      data: {
+        status: dto.status,
+        reviewedById: actor.id,
+        reviewedAt: new Date(),
+      },
+    });
   }
 
-  async getAllUsers(_query: PaginationDto): Promise<never> {
-    return featureNotImplemented('FR24: user administration projection');
+  async getAllUsers(query: PaginationDto) {
+    return this.prisma.user.findMany({
+      skip: query.skip,
+      take: query.take,
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        phoneNumber: true,
+        avatarUrl: true,
+        systemRole: true,
+        isActive: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   async toggleUserActive(
     _actor: AuthenticatedUser,
-    _id: string,
-    _dto: SetUserActiveDto,
-  ): Promise<never> {
-    return featureNotImplemented('FR24: account enable/disable');
+    id: string,
+    dto: SetUserActiveDto,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { isActive: dto.isActive },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        isActive: true,
+        systemRole: true,
+      },
+    });
   }
 }
+

@@ -60,4 +60,24 @@ export class UsersRepository {
       },
     });
   }
+
+  async findMemberships(userId: string) {
+    return this.prisma.organizationMember.findMany({
+      where: { userId },
+      select: {
+        organizationId: true,
+        role: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }
+
