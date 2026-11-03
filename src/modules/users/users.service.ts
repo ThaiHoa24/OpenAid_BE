@@ -22,4 +22,16 @@ export class UsersService {
     await this.getProfile(userId);
     return this.usersRepo.update(userId, dto);
   }
+
+  async getMemberships(userId: string) {
+    const memberships = await this.usersRepo.findMemberships(userId);
+    return memberships.map((m) => ({
+      organizationId: m.organizationId,
+      organizationName: m.organization.name,
+      organizationCode: m.organization.code,
+      organizationStatus: m.organization.status,
+      role: m.role,
+    }));
+  }
 }
+
