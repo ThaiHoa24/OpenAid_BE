@@ -158,4 +158,98 @@ export class EventsRepository {
       select: { id: true },
     });
   }
+
+  async findActiveItemTypes(tx?: Prisma.TransactionClient) {
+    const client = tx ?? this.prisma;
+    return client.itemType.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async findActiveUnits(tx?: Prisma.TransactionClient) {
+    const client = tx ?? this.prisma;
+    return client.unit.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async findDonationNeedsByEventId(
+    eventId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? this.prisma;
+    return client.donationNeed.findMany({
+      where: { eventId },
+      include: {
+        itemType: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            category: true,
+            isActive: true,
+          },
+        },
+        unit: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            isActive: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async findDonationNeedById(id: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? this.prisma;
+    return client.donationNeed.findUnique({
+      where: { id },
+      include: {
+        itemType: true,
+        unit: true,
+        event: true,
+      },
+    });
+  }
+
+  async createDonationNeed(
+    data: Prisma.DonationNeedUncheckedCreateInput,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? this.prisma;
+    return client.donationNeed.create({
+      data,
+      include: {
+        itemType: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            category: true,
+            isActive: true,
+          },
+        },
+        unit: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            isActive: true,
+          },
+        },
+      },
+    });
+  }
+
+  async deleteDonationNeed(id: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? this.prisma;
+    return client.donationNeed.delete({
+      where: { id },
+    });
+  }
 }
