@@ -55,6 +55,11 @@ export class DonationNeedInputDto {
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
   targetQuantity!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class CreateEventDto {
@@ -141,6 +146,11 @@ export class EventQueryDto extends PaginationDto {
   @IsOptional()
   @IsUUID()
   itemTypeId?: string;
+
+  @ApiPropertyOptional({ enum: EventStatus })
+  @IsOptional()
+  @IsEnum(EventStatus)
+  status?: EventStatus;
 }
 
 export class ChangeEventStatusDto {

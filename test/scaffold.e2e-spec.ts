@@ -25,6 +25,10 @@ describe('Backend foundation smoke tests (no database writes)', () => {
       ),
       create: vi.fn(),
     },
+    event: {
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
+    },
   };
 
   beforeAll(async () => {
@@ -70,10 +74,10 @@ describe('Backend foundation smoke tests (no database writes)', () => {
     expect(paths['/api/trips'].post.responses).toHaveProperty('501');
   });
 
-  it('marks public Event use cases as unimplemented', async () => {
+  it('returns published events through public Event discovery', async () => {
     const response = await request(app.getHttpServer()).get('/api/events');
-    expect(response.status).toBe(501);
-    expect(response.body).toMatchObject({ success: false, statusCode: 501 });
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ success: true, data: [] });
   });
 
   it('does not expose raw domain data through the public tracking scaffold', async () => {
