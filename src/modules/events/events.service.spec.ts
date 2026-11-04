@@ -56,6 +56,12 @@ describe('EventsService', () => {
       deleteDonationNeeds: vi.fn(),
       validateItemTypes: vi.fn(),
       validateUnits: vi.fn(),
+      findActiveItemTypes: vi.fn(),
+      findActiveUnits: vi.fn(),
+      findDonationNeedsByEventId: vi.fn(),
+      findDonationNeedById: vi.fn(),
+      createDonationNeed: vi.fn(),
+      deleteDonationNeed: vi.fn(),
     } as unknown as EventsRepository;
 
     prisma = {
@@ -317,6 +323,142 @@ describe('EventsService', () => {
 
       await expect(
         service.deleteDraft(mockActor, sampleEvent.id),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('KAN-17: Catalogs and Donation Needs Management', () => {
+    it('returns active item types and units catalogs', async () => {
+      vi.spyOn(repository, 'findActiveItemTypes').mockResolvedValue([
+        {
+          id: 'item-1',
+          code: 'RICE',
+          name: 'Rice',
+          category: 'Food',
+          isActive: true,
+        },
+      ] as any);
+      vi.spyOn(repository, 'findActiveUnits').mockResolvedValue([
+        { id: 'unit-1', code: 'KG', name: 'Kilogram', isActive: true },
+      ] as any);
+
+      const items = await service.getActiveItemTypes();
+      const units = await service.getActiveUnits();
+
+      expect(items).toHaveLength(1);
+      expect(items[0].code).toBe('RICE');
+      expect(units).toHaveLength(1);
+      expect(units[0].code).toBe('KG');
+    });
+
+    it('returns donation needs for an existing event', async () => {
+      vi.spyOn(repository, 'findById').mockResolvedValue(sampleEvent as any);
+      vi.spyOn(repository, 'findDonationNeedsByEventId').mockResolvedValue([
+        { id: 'need-1', eventId: sampleEvent.id, targetQuantity: 100 } as any,
+      ]);
+
+      const needs = await service.getDonationNeeds(sampleEvent.id);
+      expect(needs).toHaveLength(1);
+      expect(needs[0].id).toBe('need-1');
+    });
+
+    it('successfully adds a donation need to a DRAFT event', async () => {
+      vi.spyOn(repository, 'findById').mockResolvedValue(sampleEvent as any);
+      organizationAccessService.requireOrganizer.mockResolvedValue({
+        id: 'm1',
+      });
+      vi.spyOn(repository, 'validateItemTypes').mockResolvedValue([
+        { id: 'item-1' },
+      ]);
+      vi.spyOn(repository, 'validateUnits').mockResolvedValue([
+        { id: 'unit-1' },
+      ]);
+      vi.spyOn(repository, 'findDonationNeedsByEventId').mockResolvedValue([]);
+      vi.spyOn(repository, 'createDonationNeed').mockResolvedValue({
+        id: 'new-need-1',
+        eventId: sampleEvent.id,
+        itemTypeId: 'item-1',
+        unitId: 'unit-1',
+      } as any);
+
+      const result = await service.addDonationNeed(
+        mockActor,
+        sampleEvent.id,
+        {
+          itemTypeId: 'item-1',
+          unitId: 'unit-1',
+          targetQuantity: 50,
+        },
+      );
+
+      expect(result.id).toBe('new-need-1');
+    });
+
+    it('throws BadRequestException when adding donation need with duplicate item and unit', async () => {
+      vi.spyOn(repository, 'findById').mockResolvedValue(sampleEvent as any);
+      organizationAccessService.requireOrganizer.mockResolvedValue({
+        id: 'm1',
+      });
+      vi.spyOn(repository, 'validateItemTypes').mockResolvedValue([
+        { id: 'item-1' },
+      ]);
+      vi.spyOn(repository, 'validateUnits').mockResolvedValue([
+        { id: 'unit-1' },
+      ]);
+      vi.spyOn(repository, 'findDonationNeedsByEventId').mockResolvedValue([
+        {
+          id: 'need-1',
+          eventId: sampleEvent.id,
+          itemTypeId: 'item-1',
+          unitId: 'unit-1',
+        } as any,
+      ]);
+
+      await expect(
+        service.addDonationNeed(mockActor, sampleEvent.id, {
+          itemTypeId: 'item-1',
+          unitId: 'unit-1',
+          targetQuantity: 50,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('successfully removes a donation need from a DRAFT event', async () => {
+      vi.spyOn(repository, 'findById').mockResolvedValue(sampleEvent as any);
+      organizationAccessService.requireOrganizer.mockResolvedValue({
+        id: 'm1',
+      });
+      vi.spyOn(repository, 'findDonationNeedById').mockResolvedValue({
+        id: 'need-1',
+        eventId: sampleEvent.id,
+      } as any);
+      prisma.donation.count.mockResolvedValue(0);
+      vi.spyOn(repository, 'deleteDonationNeed').mockResolvedValue({
+        id: 'need-1',
+      } as any);
+
+      const result = await service.removeDonationNeed(
+        mockActor,
+        sampleEvent.id,
+        'need-1',
+      );
+      expect(result.id).toBe('need-1');
+      expect(result.message).toContain('removed');
+    });
+
+    it('throws BadRequestException when removing a donation need that has existing donations', async () => {
+      vi.spyOn(repository, 'findById').mockResolvedValue(sampleEvent as any);
+      organizationAccessService.requireOrganizer.mockResolvedValue({
+        id: 'm1',
+      });
+      vi.spyOn(repository, 'findDonationNeedById').mockResolvedValue({
+        id: 'need-1',
+        eventId: sampleEvent.id,
+      } as any);
+      prisma.donation.count.mockResolvedValue(3);
+
+      await expect(
+        service.removeDonationNeed(mockActor, sampleEvent.id, 'need-1'),
       ).rejects.toThrow(BadRequestException);
     });
   });

@@ -10,6 +10,7 @@ import {
   CreateEventDto,
   EventQueryDto,
   UpdateEventDto,
+  DonationNeedInputDto,
 } from './dto/index.js';
 import { EventStatus } from '../../common/enums/index.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
@@ -480,5 +481,127 @@ export class EventsService {
       await this.repository.delete(id, tx);
       return { id, message: 'Event draft deleted successfully' };
     });
+  }
+
+  /**
+   * KAN-17 / FR06: Lấy danh mục ItemTypes active
+   */
+  async getActiveItemTypes() {
+    return this.repository.findActiveItemTypes();
+  }
+
+  /**
+   * KAN-17 / FR06: Lấy danh mục Units active
+   */
+  async getActiveUnits() {
+    return this.repository.findActiveUnits();
+  }
+
+  /**
+   * KAN-17: Lấy danh sách Donation Needs theo Event ID
+   */
+  async getDonationNeeds(eventId: string) {
+    const event = await this.repository.findById(eventId);
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+    return this.repository.findDonationNeedsByEventId(eventId);
+  }
+
+  /**
+   * KAN-17: Bổ sung Donation Need vào Event DRAFT
+   */
+  async addDonationNeed(
+    actor: AuthenticatedUser,
+    eventId: string,
+    dto: DonationNeedInputDto,
+  ) {
+    const event = await this.repository.findById(eventId);
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    await this.organizationAccessService.requireOrganizer(
+      actor.id,
+      event.organizationId,
+    );
+
+    if (event.status !== EventStatus.DRAFT) {
+      throw new BadRequestException(
+        'Can only add donation needs to a DRAFT event',
+      );
+    }
+
+    const [validItems, validUnits] = await Promise.all([
+      this.repository.validateItemTypes([dto.itemTypeId]),
+      this.repository.validateUnits([dto.unitId]),
+    ]);
+
+    if (validItems.length === 0) {
+      throw new BadRequestException('Item type is invalid or inactive');
+    }
+    if (validUnits.length === 0) {
+      throw new BadRequestException('Unit is invalid or inactive');
+    }
+
+    const existingNeeds = await this.repository.findDonationNeedsByEventId(eventId);
+    const isDuplicate = existingNeeds.some(
+      (n) => n.itemTypeId === dto.itemTypeId && n.unitId === dto.unitId,
+    );
+    if (isDuplicate) {
+      throw new BadRequestException(
+        'This item type and unit combination already exists for this event',
+      );
+    }
+
+    return this.repository.createDonationNeed({
+      eventId,
+      itemTypeId: dto.itemTypeId,
+      unitId: dto.unitId,
+      targetQuantity: new Prisma.Decimal(dto.targetQuantity),
+      notes: dto.notes?.trim(),
+    });
+  }
+
+  /**
+   * KAN-17: Xóa Donation Need khỏi Event DRAFT
+   */
+  async removeDonationNeed(
+    actor: AuthenticatedUser,
+    eventId: string,
+    needId: string,
+  ) {
+    const event = await this.repository.findById(eventId);
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    await this.organizationAccessService.requireOrganizer(
+      actor.id,
+      event.organizationId,
+    );
+
+    if (event.status !== EventStatus.DRAFT) {
+      throw new BadRequestException(
+        'Can only remove donation needs from a DRAFT event',
+      );
+    }
+
+    const need = await this.repository.findDonationNeedById(needId);
+    if (!need || need.eventId !== eventId) {
+      throw new NotFoundException('Donation need not found for this event');
+    }
+
+    const donationCount = await this.prisma.donation.count({
+      where: { donationNeedId: needId },
+    });
+    if (donationCount > 0) {
+      throw new BadRequestException(
+        'Cannot remove donation need that has existing donations',
+      );
+    }
+
+    await this.repository.deleteDonationNeed(needId);
+    return { id: needId, message: 'Donation need removed successfully' };
   }
 }
