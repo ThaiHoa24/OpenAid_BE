@@ -28,10 +28,14 @@ OpenAid hướng tới ba nhóm nghiệp vụ chính: quản lý chiến dịch 
 | **Phân quyền 2 tầng (RBAC)** | **Hoàn thành** | <ul><li>**Cấp hệ thống:** `SystemRole` (`USER`, `ADMIN`) bảo vệ bởi `RolesGuard` toàn cục. Đọc role trực tiếp từ database, chống giả mạo token.</li><li>**Cấp tổ chức:** `OrganizationRole` (`MEMBER`, `ORGANIZER`) bảo vệ bởi `OrganizationAccessService`. Chỉ `ORGANIZER` của tổ chức mới được chỉnh sửa hoặc quản lý thành viên.</li></ul> |
 | **Quản lý Tổ chức (Organizations)** | **Hoàn thành** | Xem danh sách/chi tiết tổ chức (công khai); Tạo tổ chức kèm tự động gán quyền `ORGANIZER` cho người tạo trong transaction; Cập nhật thông tin và thêm thành viên có kiểm tra quyền `ORGANIZER`. |
 | **Quản trị hệ thống (Admin Console)** | **Hoàn thành** | Danh sách tổ chức chờ duyệt, phê duyệt/từ chối tổ chức, xem danh sách người dùng, bật/tắt trạng thái hoạt động tài khoản. Khóa nghiêm ngặt bởi `@Roles(SystemRole.ADMIN)`. |
+| **Chiến dịch & Vòng đời Sự kiện (Events Lifecycle)** | **Hoàn thành** | Quản lý vòng đời chiến dịch (`DRAFT` → `PUBLISHED` → `CLOSED`/`CANCELLED`), cấu hình vị trí TNV (`VolunteerRole`), lọc và tìm kiếm sự kiện công khai, xóa nháp an toàn, tự động ghi vết Transparency Audit Log khi chuyển trạng thái. |
+| **Nhu cầu Hiện vật & Danh mục (Donation Needs & Catalogs)** | **Hoàn thành** | Tra cứu danh mục loại hàng chuẩn (`ItemType`) và đơn vị tính (`Unit`); Khai báo, thêm, xóa và truy vấn nhu cầu hiện vật (`DonationNeed`) theo chiến dịch; Thuật toán sinh Tracking ID ngẫu nhiên không tuần tự. |
+| **Nền tảng Lưu trữ Tệp Dùng Chung (Shared Upload Foundation)** | **Hoàn thành** | Upload file dùng chung (`/api/uploads`), kiểm tra dung lượng tối đa 5MB, lọc định dạng nghiêm ngặt (`JPEG`, `PNG`, `WebP`), sinh mã lưu trữ ngẫu nhiên an toàn, phục vụ stream file tĩnh có cache control. |
+| **Nền tảng Ghi vết Minh bạch (Shared Transparency Log Foundation)** | **Hoàn thành** | Ghi log minh bạch trong cùng transaction DB (`TransparencyRepository`), tra cứu nhật ký kiểm toán cho Admin (`/api/transparency/logs`), truy xuất dòng thời gian minh bạch theo thực thể (`/api/transparency/timeline`). |
 | **Hạ tầng HTTP & Kiến trúc** | **Hoàn thành** | Modular Monolith (16 modules), validation pipe toàn cục, Transform Interceptor chuẩn hóa response envelope, AllExceptionsFilter, Swagger UI, Liveness endpoint (`/api/health/live`). |
 | **Cơ sở dữ liệu** | **Hoàn thành** | PostgreSQL `openaid` gồm 20 models, 12 enums, UUID `gen_random_uuid()`, `TIMESTAMPTZ`. Baseline migration (`20261028000000_init`) và Prisma schema đồng bộ 100%. |
-| **Các luồng nghiệp vụ còn lại** | Đang phát triển (Scaffold) | Chiến dịch (Events), Tình nguyện viên (Volunteers), Quyên góp (Donations), Kho (Inventory), Kiện hàng (Batches), Chuyến xe (Trips), Cấp phát (Distribution), Bằng chứng (Evidence), Minh bạch (Transparency), Báo cáo (Dashboard). |
-| **Kiểm thử tự động** | **Hoàn thành** | <ul><li>**Unit tests:** 7/7 tests passed (tiện ích và logic đăng ký).</li><li>**E2E Integration tests:** 18/18 tests passed trong `test/auth.e2e-spec.ts` kiểm chứng toàn diện Auth và RBAC (chặn USER thường truy cập trái phép chức năng ADMIN/ORGANIZER).</li><li>**Smoke tests:** 12/12 tests passed trong `test/scaffold.e2e-spec.ts`.</li></ul> |
+| **Các luồng nghiệp vụ tiếp theo** | Đang phát triển (Scaffold) | Tình nguyện viên (Volunteers - ứng tuyển, điểm danh), Quyên góp (Donations), Kho (Inventory), Kiện hàng (Batches), Chuyến xe (Trips), Cấp phát (Distribution), Bằng chứng (Evidence - duyệt ảnh), Báo cáo (Dashboard). |
+| **Kiểm thử tự động** | **Hoàn thành** | <ul><li>**Unit tests:** 38/38 tests passed (kiểm thử 10.000 Tracking ID duy nhất 0% collision, StorageService, TransparencyService, EventsService, AuthService, CommonUtils).</li><li>**E2E Integration tests:** 18/18 tests passed trong `test/auth.e2e-spec.ts`.</li><li>**Smoke tests:** 12/12 tests passed trong `test/scaffold.e2e-spec.ts`.</li></ul> |
 
 ---
 
@@ -62,6 +66,7 @@ Hệ thống tuân thủ nghiêm ngặt nguyên tắc **RBAC 2 tầng** được
 | Framework | NestJS 12, Express |
 | Database / ORM | PostgreSQL, Prisma 6 (`@prisma/client`) |
 | Xác thực & Bảo mật | Passport JWT, bcrypt (hashing 10 rounds), `RolesGuard`, `OrganizationAccessService` |
+| File Storage | Multer, Local disk storage (chính sách JPEG/PNG/WebP, max 5MB) |
 | Validation / Docs | `class-validator`, `class-transformer`, `@nestjs/swagger` |
 | Kiểm thử | Vitest 4, Supertest 7 |
 | Code quality | Oxlint, Prettier |
@@ -95,7 +100,7 @@ OpenAid_BE/
 │   │   ├── users/              # Hồ sơ cá nhân, danh sách memberships
 │   │   ├── organizations/      # Quản lý tổ chức, thành viên, OrganizationAccessService
 │   │   ├── admin/              # Quản trị hệ thống, duyệt tổ chức, toggle user active
-│   │   ├── events/             # Chiến dịch thiện nguyện, vai trò TNV, nhu cầu quyên góp
+│   │   ├── events/             # Quản lý chiến dịch, vai trò TNV, nhu cầu quyên góp, catalogs
 │   │   ├── volunteers/         # Ứng tuyển và điểm danh tình nguyện viên
 │   │   ├── donations/          # Đăng ký quyên góp và sinh Tracking ID
 │   │   ├── inventory/          # Quản lý kho theo chiến dịch, loại hàng và đơn vị
@@ -103,8 +108,8 @@ OpenAid_BE/
 │   │   ├── trips/              # Chuyến xe phân phối và điều phối viên
 │   │   ├── distribution/       # Điểm phân phối và xác nhận số lượng thực tế
 │   │   ├── evidence/           # Bằng chứng hình ảnh, xác nhận quyền riêng tư
-│   │   ├── storage/            # Quản lý lưu trữ tệp (Local / Cloud Storage)
-│   │   ├── transparency/       # Tra cứu Tracking ID công khai, timeline minh bạch
+│   │   ├── storage/            # Quản lý lưu trữ tệp (Local Storage, kiểm duyệt MIME/size)
+│   │   ├── transparency/       # Tra cứu nhật ký kiểm toán, timeline minh bạch
 │   │   ├── dashboard/          # Thống kê số liệu chiến dịch
 │   │   └── health/             # Health check & Liveness endpoint
 │   ├── app.module.ts           # Root module
@@ -207,9 +212,22 @@ Các API đã hoàn thiện logic nghiệp vụ, bảo vệ bởi RBAC và sẵn
 | **Admin** | `PATCH` | `/api/admin/organizations/:id/review` | Bearer JWT + `ADMIN` | Phê duyệt hoặc từ chối trạng thái hoạt động của tổ chức |
 | **Admin** | `GET` | `/api/admin/users` | Bearer JWT + `ADMIN` | Danh sách tất cả người dùng trong hệ thống |
 | **Admin** | `PATCH` | `/api/admin/users/:id/active` | Bearer JWT + `ADMIN` | Khóa hoặc mở khóa tài khoản người dùng |
+| **Events** | `GET` | `/api/events/catalogs/item-types` | Công khai | Lấy danh mục các loại hàng hóa cứu trợ đang hoạt động (`ItemType`) |
+| **Events** | `GET` | `/api/events/catalogs/units` | Công khai | Lấy danh mục các đơn vị đo lường đang hoạt động (`Unit`) |
+| **Events** | `GET` | `/api/events` | Công khai | Khám phá, lọc danh sách chiến dịch theo địa bàn, trạng thái, danh mục |
+| **Events** | `GET` | `/api/events/:id` | Công khai | Xem chi tiết thông tin chiến dịch, vị trí TNV và nhu cầu hàng hóa |
+| **Events** | `POST` | `/api/events` | Bearer JWT + `ORGANIZER` | Tạo chiến dịch mới ở trạng thái `DRAFT` kèm roles và donation needs |
+| **Events** | `PATCH` | `/api/events/:id` | Bearer JWT + `ORGANIZER` | Cập nhật thông tin chiến dịch (chỉ áp dụng khi chiến dịch là `DRAFT`) |
+| **Events** | `PATCH` | `/api/events/:id/status` | Bearer JWT + `ORGANIZER` | Đổi trạng thái (`PUBLISHED`, `CLOSED`, `CANCELLED`) và ghi audit log |
+| **Events** | `DELETE` | `/api/events/:id` | Bearer JWT + `ORGANIZER` | Xóa chiến dịch nháp `DRAFT` (chỉ khi chưa có đơn TNV, quyên góp, chuyến xe) |
+| **Events** | `GET` | `/api/events/:id/donation-needs` | Công khai | Tra cứu danh sách nhu cầu hiện vật của một chiến dịch cụ thể |
+| **Events** | `POST` | `/api/events/:id/donation-needs` | Bearer JWT + `ORGANIZER` | Khai báo bổ sung nhu cầu hiện vật vào chiến dịch `DRAFT` |
+| **Events** | `DELETE` | `/api/events/:id/donation-needs/:needId` | Bearer JWT + `ORGANIZER` | Xóa nhu cầu hiện vật khỏi chiến dịch `DRAFT` (chặn xóa nếu đã có quyên góp) |
+| **Storage** | `POST` | `/api/uploads` | Bearer JWT | Tải lên tệp ảnh (JPEG/PNG/WebP, <= 5MB) trả về URL và metadata |
+| **Storage** | `GET` | `/api/uploads/:key` | Công khai | Phục vụ xem/tải trực tiếp file ảnh đã tải lên |
+| **Transparency** | `GET` | `/api/transparency/logs` | Bearer JWT + `ADMIN` | Tra cứu danh sách nhật ký kiểm toán hệ thống (hỗ trợ phân trang) |
+| **Transparency** | `GET` | `/api/transparency/timeline` | Bearer JWT | Xem dòng thời gian minh bạch theo từng thực thể (Event, Batch, Trip...) |
 | **Health** | `GET` | `/api/health/live` | Công khai | Kiểm tra tình trạng sống (Liveness) của Backend |
-
-> *Ghi chú: Các endpoint thuộc các miền Events, Volunteers, Donations, Inventory, Batches, Trips, Distribution, Evidence, Transparency, Dashboard đã có sẵn khung Route, DTO và Swagger Contract, đang trả về mã `501 Not Implemented` theo lộ trình phát triển của Sprint tiếp theo.*
 
 ---
 
@@ -222,7 +240,7 @@ Mọi response thành công đều được chuẩn hóa qua `TransformIntercept
   "success": true,
   "statusCode": 200,
   "data": { ... },
-  "timestamp": "2026-11-03T13:40:00.000Z"
+  "timestamp": "2026-11-04T14:40:00.000Z"
 }
 ```
 
@@ -232,7 +250,7 @@ Mọi lỗi nghiệp vụ hoặc phân quyền đều trả về cấu trúc th�
 {
   "success": false,
   "statusCode": 403,
-  "timestamp": "2026-11-03T13:40:00.000Z",
+  "timestamp": "2026-11-04T14:40:00.000Z",
   "path": "/api/admin/users",
   "message": "You do not have permission to access this resource"
 }
@@ -247,7 +265,7 @@ Mọi lỗi nghiệp vụ hoặc phân quyền đều trả về cấu trúc th�
 | `npm run lint` | Kiểm tra chất lượng và quy chuẩn code bằng Oxlint (0 errors, 0 warnings) |
 | `npm run format` | Định dạng code tự động bằng Prettier |
 | `npm run build` | Tự động chạy `prisma generate` và biên dịch NestJS sang `dist/` |
-| `npm test` | Chạy bộ Unit Tests bằng Vitest |
+| `npm test` | Chạy bộ Unit Tests bằng Vitest (38/38 passed) |
 | `npm run test:e2e` | Tự động build và chạy toàn bộ kịch bản E2E Integration Tests |
 | `npm run db:check` | Kiểm tra kết nối và độ tương thích giữa DB và Prisma |
 

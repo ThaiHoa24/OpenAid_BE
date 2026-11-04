@@ -15,6 +15,7 @@ import { BatchesModule } from './modules/batches/batches.module.js';
 import { TripsModule } from './modules/trips/trips.module.js';
 import { DistributionModule } from './modules/distribution/distribution.module.js';
 import { EvidenceModule } from './modules/evidence/evidence.module.js';
+import { StorageModule } from './modules/storage/storage.module.js';
 import { TransparencyModule } from './modules/transparency/transparency.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
@@ -41,6 +42,7 @@ import { HealthModule } from './modules/health/health.module.js';
     TripsModule,
     DistributionModule,
     EvidenceModule,
+    StorageModule,
     TransparencyModule,
     DashboardModule,
     AdminModule,
