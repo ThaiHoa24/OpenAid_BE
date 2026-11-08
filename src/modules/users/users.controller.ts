@@ -31,4 +31,3 @@ export class UsersController {
     return this.usersService.getMemberships(userId);
   }
 }
-

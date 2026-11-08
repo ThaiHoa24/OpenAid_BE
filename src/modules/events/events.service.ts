@@ -544,7 +544,8 @@ export class EventsService {
       throw new BadRequestException('Unit is invalid or inactive');
     }
 
-    const existingNeeds = await this.repository.findDonationNeedsByEventId(eventId);
+    const existingNeeds =
+      await this.repository.findDonationNeedsByEventId(eventId);
     const isDuplicate = existingNeeds.some(
       (n) => n.itemTypeId === dto.itemTypeId && n.unitId === dto.unitId,
     );

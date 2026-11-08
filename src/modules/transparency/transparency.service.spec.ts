@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TransparencyService } from './transparency.service.js';
 import { TransparencyRepository } from './transparency.repository.js';
-import { SystemRole, TransparencyEntityType } from '../../common/enums/index.js';
+import {
+  SystemRole,
+  TransparencyEntityType,
+} from '../../common/enums/index.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 
 describe('TransparencyService (KAN-18 Shared Log Foundation)', () => {
@@ -46,7 +49,9 @@ describe('TransparencyService (KAN-18 Shared Log Foundation)', () => {
         },
       ];
 
-      vi.spyOn(repository, 'findRecentLogs').mockResolvedValue(sampleLogs as any);
+      vi.spyOn(repository, 'findRecentLogs').mockResolvedValue(
+        sampleLogs as any,
+      );
       vi.spyOn(repository, 'countLogs').mockResolvedValue(1);
 
       const result = await service.getRecentAuditLogs({ skip: 0, take: 10 });
@@ -55,7 +60,10 @@ describe('TransparencyService (KAN-18 Shared Log Foundation)', () => {
       expect(result.total).toBe(1);
       expect(result.skip).toBe(0);
       expect(result.take).toBe(10);
-      expect(repository.findRecentLogs).toHaveBeenCalledWith({ skip: 0, take: 10 });
+      expect(repository.findRecentLogs).toHaveBeenCalledWith({
+        skip: 0,
+        take: 10,
+      });
     });
   });
 

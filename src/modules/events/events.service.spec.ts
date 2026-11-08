@@ -381,15 +381,11 @@ describe('EventsService', () => {
         unitId: 'unit-1',
       } as any);
 
-      const result = await service.addDonationNeed(
-        mockActor,
-        sampleEvent.id,
-        {
-          itemTypeId: 'item-1',
-          unitId: 'unit-1',
-          targetQuantity: 50,
-        },
-      );
+      const result = await service.addDonationNeed(mockActor, sampleEvent.id, {
+        itemTypeId: 'item-1',
+        unitId: 'unit-1',
+        targetQuantity: 50,
+      });
 
       expect(result.id).toBe('new-need-1');
     });

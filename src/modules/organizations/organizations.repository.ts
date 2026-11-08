@@ -72,7 +72,11 @@ export class OrganizationsRepository {
     });
   }
 
-  async addMember(organizationId: string, userId: string, role: OrganizationRole) {
+  async addMember(
+    organizationId: string,
+    userId: string,
+    role: OrganizationRole,
+  ) {
     return this.prisma.organizationMember.create({
       data: {
         organizationId,
@@ -93,4 +97,3 @@ export class OrganizationsRepository {
     });
   }
 }
-

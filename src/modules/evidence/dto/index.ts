@@ -16,6 +16,20 @@ export class CreateEvidenceDto {
   @IsUUID()
   distributionRecordId?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  mimeType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  sizeBytes?: number;
+
   @ApiProperty({
     enum: [true],
     description:
