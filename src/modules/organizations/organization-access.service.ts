@@ -29,4 +29,15 @@ export class OrganizationAccessService {
     }
     return member;
   }
+
+  async requireEventOrganizer(userId: string, eventId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: { organizationId: true },
+    });
+    if (!event) {
+      throw new ForbiddenException('Event not found or inaccessible');
+    }
+    return this.requireOrganizer(userId, event.organizationId);
+  }
 }

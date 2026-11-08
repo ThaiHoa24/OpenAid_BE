@@ -111,7 +111,8 @@ describe('StorageService (KAN-18 Shared Upload Foundation)', () => {
     });
 
     await service.remove(stored.key);
-    await expect(service.getFile(stored.key)).rejects.toThrow(NotFoundException);
+    await expect(service.getFile(stored.key)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });
-

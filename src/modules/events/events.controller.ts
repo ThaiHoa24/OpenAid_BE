@@ -67,7 +67,9 @@ export class EventsController {
 
   @Public()
   @Get(':id/donation-needs')
-  @ApiOperation({ summary: 'Public discovery: get donation needs for an event' })
+  @ApiOperation({
+    summary: 'Public discovery: get donation needs for an event',
+  })
   @ApiResponse({ status: 200, description: 'List of donation needs' })
   @ApiResponse({ status: 404, description: 'Event not found' })
   getDonationNeeds(@Param('id') id: string) {

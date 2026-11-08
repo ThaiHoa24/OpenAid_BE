@@ -60,10 +60,7 @@ export class StorageService implements FileStorage {
     await this.ensureUploadDir();
 
     // 3. Sinh key ngẫu nhiên an toàn, không tuần tự và tránh trùng lặp
-    const ext = this.getExtensionFromMimeType(
-      file.mimeType,
-      file.originalName,
-    );
+    const ext = this.getExtensionFromMimeType(file.mimeType, file.originalName);
     const randomHex = crypto.randomBytes(16).toString('hex');
     const key = `${randomHex}${ext}`;
     const filePath = path.join(this.uploadDir, key);

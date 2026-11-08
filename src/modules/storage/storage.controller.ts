@@ -58,7 +58,9 @@ export class StorageController {
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(@UploadedFile() file?: UploadedMultipartFile) {
     if (!file) {
-      throw new BadRequestException('No file provided in form-data field "file"');
+      throw new BadRequestException(
+        'No file provided in form-data field "file"',
+      );
     }
 
     return this.storageService.save({

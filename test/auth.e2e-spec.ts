@@ -23,7 +23,9 @@ describe('Authentication & RBAC E2E Integration Tests', () => {
       findFirst: async ({ where }: any) => {
         if (where?.email?.equals) {
           const target = where.email.equals.toLowerCase();
-          return usersStore.find((u) => u.email.toLowerCase() === target) ?? null;
+          return (
+            usersStore.find((u) => u.email.toLowerCase() === target) ?? null
+          );
         }
         return null;
       },
@@ -238,7 +240,10 @@ describe('Authentication & RBAC E2E Integration Tests', () => {
       // Verify password was properly hashed in database
       const savedUser = usersStore.find((u) => u.id === normalUserId);
       expect(savedUser.passwordHash).not.toBe('Password123!');
-      const matches = await bcrypt.compare('Password123!', savedUser.passwordHash);
+      const matches = await bcrypt.compare(
+        'Password123!',
+        savedUser.passwordHash,
+      );
       expect(matches).toBe(true);
     });
 
@@ -305,7 +310,9 @@ describe('Authentication & RBAC E2E Integration Tests', () => {
     });
 
     it('blocks unauthenticated access to profile with 401', async () => {
-      const response = await request(app.getHttpServer()).get('/api/users/profile');
+      const response = await request(app.getHttpServer()).get(
+        '/api/users/profile',
+      );
       expect(response.status).toBe(401);
     });
   });
@@ -413,7 +420,9 @@ describe('Authentication & RBAC E2E Integration Tests', () => {
         });
 
       expect(response.status).toBe(403);
-      expect(response.body.message).toContain('Organizer permission is required');
+      expect(response.body.message).toContain(
+        'Organizer permission is required',
+      );
     });
 
     it('USER 2 is forbidden (403) from adding members to an Organization they do not organize', async () => {
@@ -426,7 +435,9 @@ describe('Authentication & RBAC E2E Integration Tests', () => {
         });
 
       expect(response.status).toBe(403);
-      expect(response.body.message).toContain('Organizer permission is required');
+      expect(response.body.message).toContain(
+        'Organizer permission is required',
+      );
     });
 
     it('USER 1 (ORGANIZER) can update the Organization successfully (200)', async () => {
@@ -466,7 +477,9 @@ describe('Authentication & RBAC E2E Integration Tests', () => {
         });
 
       expect(response.status).toBe(403);
-      expect(response.body.message).toContain('Organizer permission is required');
+      expect(response.body.message).toContain(
+        'Organizer permission is required',
+      );
     });
   });
 });

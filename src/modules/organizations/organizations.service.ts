@@ -64,10 +64,11 @@ export class OrganizationsService {
       dto.userId,
     );
     if (existingMember) {
-      throw new ConflictException('User is already a member of this organization');
+      throw new ConflictException(
+        'User is already a member of this organization',
+      );
     }
 
     return this.repository.addMember(organizationId, dto.userId, dto.role);
   }
 }
-
