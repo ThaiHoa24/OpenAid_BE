@@ -29,6 +29,11 @@ describe('Backend foundation smoke tests (no database writes)', () => {
       findMany: vi.fn().mockResolvedValue([]),
       count: vi.fn().mockResolvedValue(0),
     },
+    donation: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
+    },
   };
 
   beforeAll(async () => {
@@ -84,7 +89,7 @@ describe('Backend foundation smoke tests (no database writes)', () => {
     const response = await request(app.getHttpServer()).get(
       '/api/transparency/track/DON-2026-TEST',
     );
-    expect(response.status).toBe(501);
+    expect(response.status).toBe(404);
     expect(response.body).not.toHaveProperty('data');
   });
 
@@ -102,7 +107,7 @@ describe('Backend foundation smoke tests (no database writes)', () => {
     const response = await request(app.getHttpServer())
       .get('/api/donations/my')
       .set('Authorization', `Bearer ${token}`);
-    expect(response.status).toBe(501);
+    expect(response.status).toBe(200);
     expect(database.user.findUnique).toHaveBeenCalledWith({
       where: { id: user.id },
     });
