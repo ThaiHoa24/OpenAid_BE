@@ -10,7 +10,9 @@ import { PaginationDto } from '../../common/dto/pagination.dto.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import {
   BatchStatus,
+  DistributionPointStatus,
   TripStatus,
+  TripVolunteerRole,
   VolunteerApplicationStatus,
 } from '../../common/enums/index.js';
 import { PrismaService } from '../../database/prisma.service.js';
@@ -115,6 +117,13 @@ export class TripsService {
       }
     }
 
+    const leaders = dto.volunteers.filter(
+      (v) => v.role === TripVolunteerRole.LEADER,
+    );
+    if (leaders.length !== 1) {
+      throw new BadRequestException('A trip must have exactly one LEADER');
+    }
+
     // 3. Validate points positions
     const positions = dto.points.map((p) => p.position);
     if (new Set(positions).size !== positions.length) {
@@ -200,14 +209,64 @@ export class TripsService {
       throw new NotFoundException('Trip not found');
     }
 
-    if (actor.systemRole !== SystemRole.ADMIN) {
+    if (
+      trip.status === TripStatus.COMPLETED ||
+      trip.status === TripStatus.CANCELLED
+    ) {
+      throw new BadRequestException(
+        `Cannot change status of a trip that is already ${trip.status}`,
+      );
+    }
+
+    const isLeader = (trip.volunteers || []).some(
+      (v: any) =>
+        v.application?.user?.id === actor.id &&
+        v.role === TripVolunteerRole.LEADER,
+    );
+
+    if (actor.systemRole !== SystemRole.ADMIN && !isLeader) {
       await this.organizationAccessService.requireEventOrganizer(
         actor.id,
         trip.eventId,
       );
     }
 
+    if (dto.status === TripStatus.COMPLETED) {
+      const incompletePoints = (trip.points || []).filter(
+        (p: any) =>
+          p.status !== DistributionPointStatus.DISTRIBUTED &&
+          p.status !== DistributionPointStatus.SKIPPED,
+      );
+      if (incompletePoints.length > 0) {
+        throw new BadRequestException(
+          `Cannot complete trip: ${incompletePoints.length} distribution point(s) are not yet DISTRIBUTED or SKIPPED.`,
+        );
+      }
+    }
+
+    if (dto.status === TripStatus.CANCELLED) {
+      const hasDistributed = (trip.points || []).some(
+        (p: any) => p.status === DistributionPointStatus.DISTRIBUTED,
+      );
+      if (hasDistributed) {
+        throw new BadRequestException(
+          'Cannot cancel a trip after distribution has already occurred at one or more points.',
+        );
+      }
+    }
+
     return this.prisma.$transaction(async (tx) => {
+      // If cancelling, return assigned batches back to READY status
+      if (dto.status === TripStatus.CANCELLED) {
+        const batchIds = (trip.batches || []).map((tb: any) => tb.batchId);
+        if (batchIds.length > 0) {
+          await tx.batch.updateMany({
+            where: { id: { in: batchIds } },
+            data: { status: BatchStatus.READY },
+          });
+        }
+      }
+
       const updated = await tx.trip.update({
         where: { id },
         data: {
