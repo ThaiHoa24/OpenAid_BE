@@ -29,6 +29,10 @@ describe('Backend foundation smoke tests (no database writes)', () => {
       findMany: vi.fn().mockResolvedValue([]),
       count: vi.fn().mockResolvedValue(0),
     },
+    donation: {
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
+    },
   };
 
   beforeAll(async () => {
@@ -98,14 +102,15 @@ describe('Backend foundation smoke tests (no database writes)', () => {
     expect(response.status).toBe(401);
   });
 
-  it('resolves the authenticated donor before entering the My Donations scaffold', async () => {
+  it('resolves the authenticated donor and returns My Donations', async () => {
     const response = await request(app.getHttpServer())
       .get('/api/donations/my')
       .set('Authorization', `Bearer ${token}`);
-    expect(response.status).toBe(501);
+    expect(response.status).toBe(200);
     expect(database.user.findUnique).toHaveBeenCalledWith({
       where: { id: user.id },
     });
+    expect(response.body).toMatchObject({ success: true, data: [] });
   });
 
   it('uses the database system role to protect Admin routes', async () => {
