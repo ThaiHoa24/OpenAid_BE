@@ -34,8 +34,13 @@ OpenAid hướng tới ba nhóm nghiệp vụ chính: quản lý chiến dịch 
 | **Nền tảng Ghi vết Minh bạch (Shared Transparency Log Foundation)** | **Hoàn thành** | Ghi log minh bạch trong cùng transaction DB (`TransparencyRepository`), tra cứu nhật ký kiểm toán cho Admin (`/api/transparency/logs`), truy xuất dòng thời gian minh bạch theo thực thể (`/api/transparency/timeline`). |
 | **Hạ tầng HTTP & Kiến trúc** | **Hoàn thành** | Modular Monolith (16 modules), validation pipe toàn cục, Transform Interceptor chuẩn hóa response envelope, AllExceptionsFilter, Swagger UI, Liveness endpoint (`/api/health/live`). |
 | **Cơ sở dữ liệu** | **Hoàn thành** | PostgreSQL `openaid` gồm 20 models, 12 enums, UUID `gen_random_uuid()`, `TIMESTAMPTZ`. Baseline migration (`20261028000000_init`) và Prisma schema đồng bộ 100%. |
-| **Các luồng nghiệp vụ tiếp theo** | Đang phát triển (Scaffold) | Tình nguyện viên (Volunteers - ứng tuyển, điểm danh), Quyên góp (Donations), Kho (Inventory), Kiện hàng (Batches), Chuyến xe (Trips), Cấp phát (Distribution), Bằng chứng (Evidence - duyệt ảnh), Báo cáo (Dashboard). |
-| **Kiểm thử tự động** | **Hoàn thành** | <ul><li>**Unit tests:** 38/38 tests passed (kiểm thử 10.000 Tracking ID duy nhất 0% collision, StorageService, TransparencyService, EventsService, AuthService, CommonUtils).</li><li>**E2E Integration tests:** 18/18 tests passed trong `test/auth.e2e-spec.ts`.</li><li>**Smoke tests:** 12/12 tests passed trong `test/scaffold.e2e-spec.ts`.</li></ul> |
+| **Tình nguyện viên (Volunteers)** | **Hoàn thành** | Đăng ký ứng tuyển TNV theo vị trí (VOL-01), xem đơn cá nhân (VOL-02), Organizer duyệt/từ chối đơn (VOL-03, VOL-04), xác nhận Check-in/Check-out ca trực kèm lưu vết thời gian và người xác nhận (VOL-05, VOL-06). |
+| **Quyên góp & Tiếp nhận (Donations)** | **Hoàn thành** | Đăng ký quyên góp hiện vật sinh Tracking ID (FR12), xem lịch sử quyên góp của bản thân (FR13), Organizer tiếp nhận hàng vào kho và tự động ghi vết minh bạch trong transaction DB (FR14, FR15, FR20), hủy quyên góp nháp. |
+| **Quản lý Tồn kho & Đóng kiện (Inventory & Batches)** | **Hoàn thành** | Quản lý số lượng tồn kho theo sự kiện và loại hàng; Đóng kiện hàng từ các khoản quyên góp (FR16), chuyển trạng thái kiện `PACKED` → `READY` chuẩn bị vận chuyển (FR17). |
+| **Chuyến xe Cứu trợ & Phân phối (Trips & Distribution)** | **Hoàn thành** | Lập chuyến xe gán kiện hàng `READY`, điều phối Trip Leader và TNV `APPROVED`, lộ trình các điểm phân phối (TRP-01 - TRP-03); Cập nhật trạng thái chuyến xe (`IN_TRANSIT`, `COMPLETED`); Ghi nhận số lượng hiện vật cấp phát thực tế tại điểm (FR18, FR19). |
+| **Bằng chứng & Minh bạch Công khai (Evidence & Transparency)** | **Hoàn thành** | Tải lên ảnh/biên bản bàn giao tại điểm phát, Organizer phê duyệt bằng chứng (FR19); Tra cứu hành trình minh bạch công khai qua Tracking ID không cần đăng nhập (FR21, FR22), xem timeline kiểm toán hệ thống. |
+| **Thống kê & Báo cáo (Dashboard)** | **Hoàn thành** | Thống kê số liệu tổng quan theo chiến dịch: tổng hiện vật quyên góp, tỷ lệ hoàn thành nhu cầu, số lượng tồn kho, tiến độ chuyến xe và số lượng TNV tham gia. |
+| **Kiểm thử tự động** | **Hoàn thành** | <ul><li>**Unit tests:** 110/110 tests passed (kiểm thử 10.000 Tracking ID duy nhất 0% collision, StorageService, TransparencyService, EventsService, AuthService, VolunteersService, DonationsService, BatchesService, TripsService, DistributionService, CommonUtils).</li><li>**E2E Integration & Smoke tests:** 30/30 tests passed trong `test/auth.e2e-spec.ts` và `test/scaffold.e2e-spec.ts`.</li></ul> |
 
 ---
 
@@ -225,6 +230,36 @@ Các API đã hoàn thiện logic nghiệp vụ, bảo vệ bởi RBAC và sẵn
 | **Events** | `DELETE` | `/api/events/:id/donation-needs/:needId` | Bearer JWT + `ORGANIZER` | Xóa nhu cầu hiện vật khỏi chiến dịch `DRAFT` (chặn xóa nếu đã có quyên góp) |
 | **Storage** | `POST` | `/api/uploads` | Bearer JWT | Tải lên tệp ảnh (JPEG/PNG/WebP, <= 5MB) trả về URL và metadata |
 | **Storage** | `GET` | `/api/uploads/:key` | Công khai | Phục vụ xem/tải trực tiếp file ảnh đã tải lên |
+| **Volunteers** | `POST` | `/api/volunteers/apply` | Bearer JWT | Nộp đơn ứng tuyển tình nguyện viên vào sự kiện (VOL-01) |
+| **Volunteers** | `GET` | `/api/volunteers/my` | Bearer JWT | Xem danh sách hoạt động và trạng thái ứng tuyển của bản thân (VOL-02) |
+| **Volunteers** | `GET` | `/api/volunteers/event/:eventId` | Bearer JWT + `ORGANIZER` | Xem danh sách tình nguyện viên ứng tuyển theo sự kiện (VOL-03) |
+| **Volunteers** | `PATCH` | `/api/volunteers/:id/review` | Bearer JWT + `ORGANIZER` | Xét duyệt (APPROVED/REJECTED) đơn ứng tuyển tình nguyện viên (VOL-04) |
+| **Volunteers** | `POST` | `/api/volunteers/:id/check-in` | Bearer JWT | Xác nhận Check-in ca trực tình nguyện viên (VOL-05) |
+| **Volunteers** | `POST` | `/api/volunteers/:id/check-out` | Bearer JWT | Xác nhận Check-out ca trực tình nguyện viên (VOL-06) |
+| **Donations** | `POST` | `/api/donations` | Bearer JWT | Đăng ký quyên góp hiện vật mới và sinh Tracking ID (FR12) |
+| **Donations** | `GET` | `/api/donations/my` | Bearer JWT | Xem lịch sử các khoản quyên góp của bản thân (FR13) |
+| **Donations** | `GET` | `/api/donations/event/:eventId` | Bearer JWT + `ORGANIZER` | Danh sách các khoản quyên góp theo chiến dịch (FR14) |
+| **Donations** | `PATCH` | `/api/donations/:id/receipt` | Bearer JWT + `ORGANIZER` | Tiếp nhận hiện vật vào kho và cập nhật số lượng tồn kho (FR14, FR15) |
+| **Donations** | `PATCH` | `/api/donations/:id/cancel` | Bearer JWT | Hủy khoản quyên góp ở trạng thái chờ xử lý của bản thân (FR12) |
+| **Inventory** | `GET` | `/api/inventory/event/:eventId` | Bearer JWT + `ORGANIZER` | Xem số lượng hàng tồn kho theo sự kiện và loại hàng |
+| **Inventory** | `GET` | `/api/inventory/event/:eventId/history` | Bearer JWT + `ORGANIZER` | Xem lịch sử biến động nhập/xuất kho hiện vật |
+| **Batches** | `GET` | `/api/batches/event/:eventId` | Bearer JWT + `ORGANIZER` | Danh sách các kiện hàng cứu trợ theo sự kiện |
+| **Batches** | `GET` | `/api/batches/:id` | Bearer JWT + `ORGANIZER` | Chi tiết kiện hàng kèm danh sách các khoản quyên góp đã gom |
+| **Batches** | `POST` | `/api/batches` | Bearer JWT + `ORGANIZER` | Đóng kiện hàng mới từ các khoản quyên góp (FR16) |
+| **Batches** | `PATCH` | `/api/batches/:id/ready` | Bearer JWT + `ORGANIZER` | Chuyển kiện sang trạng thái READY chuẩn bị vận chuyển (FR17) |
+| **Trips** | `GET` | `/api/trips/event/:eventId` | Bearer JWT + `ORGANIZER` | Danh sách chuyến xe cứu trợ theo sự kiện (TRP-01) |
+| **Trips** | `GET` | `/api/trips/:id` | Bearer JWT + `ORGANIZER` | Chi tiết chuyến xe, kiện hàng, điểm phát và nhân sự (TRP-02) |
+| **Trips** | `POST` | `/api/trips` | Bearer JWT + `ORGANIZER` | Lập chuyến xe mới: gán kiện READY, TNV (1 Leader), điểm phát (TRP-03) |
+| **Trips** | `PATCH` | `/api/trips/:id/status` | Bearer JWT + `ORGANIZER` | Cập nhật trạng thái chuyến xe (`IN_TRANSIT`, `COMPLETED`...) (TRP-04) |
+| **Trips** | `PATCH` | `/api/trips/:id/points/:pointId/status` | Bearer JWT + `ORGANIZER` | Cập nhật trạng thái tại từng điểm phát của chuyến xe (TRP-05) |
+| **Distribution** | `GET` | `/api/distribution/records/point/:pointId` | Bearer JWT + `ORGANIZER` | Xem danh sách biên bản cấp phát hàng cứu trợ tại điểm phát |
+| **Distribution** | `POST` | `/api/distribution/records` | Bearer JWT + `ORGANIZER` | Ghi nhận số lượng hiện vật cấp phát thực tế tại điểm (FR18, FR19) |
+| **Distribution** | `PATCH` | `/api/distribution/records/:id/status` | Bearer JWT + `ORGANIZER` | Xác nhận hoàn thành cấp phát |
+| **Evidence** | `GET` | `/api/evidence/point/:pointId` | Bearer JWT + `ORGANIZER` | Xem danh sách ảnh/biên bản bằng chứng tại điểm phát |
+| **Evidence** | `POST` | `/api/evidence` | Bearer JWT + `ORGANIZER` | Tải lên bằng chứng và xác nhận quyền riêng tư (FR19) |
+| **Evidence** | `PATCH` | `/api/evidence/:id/review` | Bearer JWT + `ORGANIZER` | Phê duyệt hoặc từ chối bằng chứng hình ảnh (FR19) |
+| **Dashboard** | `GET` | `/api/dashboard/event/:eventId/summary` | Bearer JWT + `ORGANIZER` | Thống kê số liệu tổng quan của sự kiện (tồn kho, TNV, quyên góp) |
+| **Transparency** | `GET` | `/api/transparency/track/:trackingId` | Công khai | Tra cứu công khai hành trình đóng góp và minh bạch bằng Tracking ID (FR21, FR22) |
 | **Transparency** | `GET` | `/api/transparency/logs` | Bearer JWT + `ADMIN` | Tra cứu danh sách nhật ký kiểm toán hệ thống (hỗ trợ phân trang) |
 | **Transparency** | `GET` | `/api/transparency/timeline` | Bearer JWT | Xem dòng thời gian minh bạch theo từng thực thể (Event, Batch, Trip...) |
 | **Health** | `GET` | `/api/health/live` | Công khai | Kiểm tra tình trạng sống (Liveness) của Backend |
@@ -265,8 +300,8 @@ Mọi lỗi nghiệp vụ hoặc phân quyền đều trả về cấu trúc th�
 | `npm run lint` | Kiểm tra chất lượng và quy chuẩn code bằng Oxlint (0 errors, 0 warnings) |
 | `npm run format` | Định dạng code tự động bằng Prettier |
 | `npm run build` | Tự động chạy `prisma generate` và biên dịch NestJS sang `dist/` |
-| `npm test` | Chạy bộ Unit Tests bằng Vitest (38/38 passed) |
-| `npm run test:e2e` | Tự động build và chạy toàn bộ kịch bản E2E Integration Tests |
+| `npm test` | Chạy bộ Unit Tests bằng Vitest (110/110 passed) |
+| `npm run test:e2e` | Tự động build và chạy toàn bộ kịch bản E2E Integration & Smoke Tests (30/30 passed) |
 | `npm run db:check` | Kiểm tra kết nối và độ tương thích giữa DB và Prisma |
 
 ---
