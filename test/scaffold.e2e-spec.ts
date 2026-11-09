@@ -76,7 +76,7 @@ describe('Backend foundation smoke tests (no database writes)', () => {
     expect(
       paths['/api/transparency/track/{trackingId}'].get.security ?? [],
     ).toEqual([]);
-    expect(paths['/api/trips'].post.responses).toHaveProperty('501');
+    expect(paths['/api/trips'].post.responses).toHaveProperty('201');
   });
 
   it('returns published events through public Event discovery', async () => {

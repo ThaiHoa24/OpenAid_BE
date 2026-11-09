@@ -10,7 +10,10 @@ import {
   UpdateDistributionPointDto,
 } from './dto/index.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
-import { DistributionPointStatus } from '../../common/enums/index.js';
+import {
+  DistributionPointStatus,
+  TripVolunteerRole,
+} from '../../common/enums/index.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { OrganizationAccessService } from '../organizations/organization-access.service.js';
 import { TransparencyRepository } from '../transparency/transparency.repository.js';
@@ -44,7 +47,17 @@ export class DistributionService {
       );
     }
 
-    if (actor.systemRole !== SystemRole.ADMIN) {
+    const isLeader = await this.prisma.tripVolunteer.findFirst({
+      where: {
+        tripId: tripBatch.tripId,
+        role: TripVolunteerRole.LEADER,
+        application: {
+          userId: actor.id,
+        },
+      },
+    });
+
+    if (actor.systemRole !== SystemRole.ADMIN && !isLeader) {
       await this.organizationAccessService.requireEventOrganizer(
         actor.id,
         tripBatch.eventId,
@@ -52,6 +65,21 @@ export class DistributionService {
     }
 
     const qtyDecimal = new Prisma.Decimal(dto.distributedQuantity);
+
+    // Validate that cumulative distributed quantity across points does not exceed the batch total
+    const existingRecords = await this.prisma.distributionRecord.findMany({
+      where: { tripBatchId: dto.tripBatchId },
+    });
+    const currentDistributed = existingRecords.reduce(
+      (sum, r) => sum.plus(r.distributedQuantity),
+      new Prisma.Decimal(0),
+    );
+    const newTotal = currentDistributed.plus(qtyDecimal);
+    if (newTotal.greaterThan(tripBatch.batch.quantity)) {
+      throw new BadRequestException(
+        `Total distributed quantity (${newTotal}) would exceed the batch total quantity (${tripBatch.batch.quantity}). Already recorded: ${currentDistributed}`,
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const record = await this.repository.createRecord(
@@ -119,7 +147,17 @@ export class DistributionService {
       throw new NotFoundException('Distribution point not found');
     }
 
-    if (actor.systemRole !== SystemRole.ADMIN) {
+    const isLeader = await this.prisma.tripVolunteer.findFirst({
+      where: {
+        tripId: point.tripId,
+        role: TripVolunteerRole.LEADER,
+        application: {
+          userId: actor.id,
+        },
+      },
+    });
+
+    if (actor.systemRole !== SystemRole.ADMIN && !isLeader) {
       await this.organizationAccessService.requireEventOrganizer(
         actor.id,
         point.trip.eventId,

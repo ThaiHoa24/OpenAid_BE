@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -26,6 +27,34 @@ export class EvidenceService {
     });
     if (!trip) {
       throw new NotFoundException('Trip not found');
+    }
+
+    if (actor.systemRole !== SystemRole.ADMIN) {
+      let isOrganizer = false;
+      try {
+        await this.organizationAccessService.requireEventOrganizer(
+          actor.id,
+          trip.eventId,
+        );
+        isOrganizer = true;
+      } catch {
+        isOrganizer = false;
+      }
+
+      const isTripVolunteer = await this.prisma.tripVolunteer.findFirst({
+        where: {
+          tripId: trip.id,
+          application: {
+            userId: actor.id,
+          },
+        },
+      });
+
+      if (!isOrganizer && !isTripVolunteer) {
+        throw new ForbiddenException(
+          'Chỉ Organizer hoặc Tình nguyện viên tham gia chuyến xe mới có quyền tải lên bằng chứng',
+        );
+      }
     }
 
     const point = trip.points.find((p) => p.id === dto.distributionPointId);
@@ -99,6 +128,41 @@ export class EvidenceService {
   }
 
   async getEvidenceByTrip(actor: AuthenticatedUser, tripId: string) {
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+    });
+    if (!trip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    if (actor.systemRole !== SystemRole.ADMIN) {
+      let isOrganizer = false;
+      try {
+        await this.organizationAccessService.requireEventOrganizer(
+          actor.id,
+          trip.eventId,
+        );
+        isOrganizer = true;
+      } catch {
+        isOrganizer = false;
+      }
+
+      const isTripVolunteer = await this.prisma.tripVolunteer.findFirst({
+        where: {
+          tripId: trip.id,
+          application: {
+            userId: actor.id,
+          },
+        },
+      });
+
+      if (!isOrganizer && !isTripVolunteer) {
+        throw new ForbiddenException(
+          'Chỉ Organizer hoặc Tình nguyện viên tham gia chuyến xe mới có quyền xem bằng chứng nội bộ',
+        );
+      }
+    }
+
     return this.prisma.evidence.findMany({
       where: { tripId },
       include: {
