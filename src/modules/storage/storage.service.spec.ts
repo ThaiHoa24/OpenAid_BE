@@ -1,12 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { StorageService } from './storage.service.js';
 
 describe('StorageService (KAN-18 Shared Upload Foundation)', () => {
   let service: StorageService;
-  const testDir = path.resolve(process.cwd(), 'uploads');
   const createdKeys: string[] = [];
 
   beforeEach(() => {
@@ -114,5 +111,17 @@ describe('StorageService (KAN-18 Shared Upload Foundation)', () => {
     await expect(service.getFile(stored.key)).rejects.toThrow(
       NotFoundException,
     );
+  });
+
+  it('runs cleanupOrphans safely without errors', async () => {
+    const mockPrisma = {
+      evidence: { findMany: vi.fn().mockResolvedValue([]) },
+      user: { findMany: vi.fn().mockResolvedValue([]) },
+      donation: { findMany: vi.fn().mockResolvedValue([]) },
+    } as any;
+
+    const result = await service.cleanupOrphans(mockPrisma, 0); // 0ms threshold
+    expect(result).toHaveProperty('scannedCount');
+    expect(result).toHaveProperty('deletedCount');
   });
 });

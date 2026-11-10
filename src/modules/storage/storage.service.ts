@@ -11,6 +11,7 @@ import {
   type FileStorage,
   type StoredFile,
 } from './storage.types.js';
+import type { PrismaService } from '../../database/prisma.service.js';
 
 @Injectable()
 export class StorageService implements FileStorage {
@@ -107,6 +108,55 @@ export class StorageService implements FileStorage {
       }
       throw err;
     }
+  }
+
+  /**
+   * Dọn dẹp các file mồ côi (không được liên kết với Evidence, User avatar hay Donation)
+   */
+  async cleanupOrphans(
+    prisma?: PrismaService,
+    olderThanMs = 24 * 60 * 60 * 1000,
+  ): Promise<{ deletedCount: number; scannedCount: number }> {
+    await this.ensureUploadDir();
+    const files = await fs.readdir(this.uploadDir);
+    const now = Date.now();
+    let deletedCount = 0;
+
+    let activeKeys: Set<string> | null = null;
+    if (prisma) {
+      const [evidences, users, donations] = await Promise.all([
+        prisma.evidence.findMany({ select: { imageUrl: true } }),
+        prisma.user.findMany({ select: { avatarUrl: true } }),
+        prisma.donation.findMany({ select: { photoUrl: true } }),
+      ]);
+      activeKeys = new Set<string>();
+      for (const e of evidences) {
+        if (e.imageUrl) activeKeys.add(path.basename(e.imageUrl));
+      }
+      for (const u of users) {
+        if (u.avatarUrl) activeKeys.add(path.basename(u.avatarUrl));
+      }
+      for (const d of donations) {
+        if (d.photoUrl) activeKeys.add(path.basename(d.photoUrl));
+      }
+    }
+
+    for (const file of files) {
+      const filePath = path.join(this.uploadDir, file);
+      try {
+        const stats = await fs.stat(filePath);
+        if (now - stats.mtimeMs > olderThanMs) {
+          if (!activeKeys || !activeKeys.has(file)) {
+            await fs.unlink(filePath);
+            deletedCount++;
+          }
+        }
+      } catch {
+        // Bỏ qua lỗi truy cập file
+      }
+    }
+
+    return { deletedCount, scannedCount: files.length };
   }
 
   private getExtensionFromMimeType(
