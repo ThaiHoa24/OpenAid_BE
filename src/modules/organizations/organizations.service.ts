@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { OrganizationsRepository } from './organizations.repository.js';
 import { OrganizationAccessService } from './organization-access.service.js';
@@ -59,9 +60,23 @@ export class OrganizationsService {
   ) {
     await this.accessService.requireOrganizer(actor.id, organizationId);
 
+    let targetUserId = dto.userId;
+
+    if (!targetUserId && dto.email) {
+      const user = await this.repository.findUserByEmail(dto.email);
+      if (!user) {
+        throw new NotFoundException(`Không tìm thấy tài khoản với email ${dto.email}`);
+      }
+      targetUserId = user.id;
+    }
+
+    if (!targetUserId) {
+      throw new BadRequestException('Vui lòng cung cấp userId hoặc email của thành viên cần thêm.');
+    }
+
     const existingMember = await this.repository.findMember(
       organizationId,
-      dto.userId,
+      targetUserId,
     );
     if (existingMember) {
       throw new ConflictException(
@@ -69,6 +84,6 @@ export class OrganizationsService {
       );
     }
 
-    return this.repository.addMember(organizationId, dto.userId, dto.role);
+    return this.repository.addMember(organizationId, targetUserId, dto.role);
   }
 }

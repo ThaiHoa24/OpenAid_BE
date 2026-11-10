@@ -15,9 +15,27 @@ export class OrganizationsRepository {
           select: {
             userId: true,
             role: true,
+            joinedAt: true,
+            createdAt: true,
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+                phoneNumber: true,
+                avatarUrl: true,
+                isActive: true,
+              },
+            },
           },
         },
       },
+    });
+  }
+
+  async findUserByEmail(email: string) {
+    return this.prisma.user.findFirst({
+      where: { email: { equals: email.trim(), mode: 'insensitive' } },
     });
   }
 

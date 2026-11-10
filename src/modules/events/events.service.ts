@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -12,7 +13,7 @@ import {
   UpdateEventDto,
   DonationNeedInputDto,
 } from './dto/index.js';
-import { EventStatus } from '../../common/enums/index.js';
+import { EventStatus, OrgStatus, SystemRole } from '../../common/enums/index.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { OrganizationAccessService } from '../organizations/organization-access.service.js';
@@ -401,18 +402,31 @@ export class EventsService {
     }
 
     // 2. Phân quyền:
-    // - Nếu chuyển sang PUBLISHED: BẮT BUỘC Tổ chức phải được Admin duyệt (APPROVED)!
-    // - Nếu chuyển sang các trạng thái khác: Kiểm tra quyền Organizer của tổ chức đó
-    if (dto.status === EventStatus.PUBLISHED) {
-      await this.organizationAccessService.requireApprovedOrganizer(
-        actor.id,
-        event.organizationId,
-      );
+    // - Platform Admin có quyền kiểm duyệt (Moderation) các chiến dịch
+    // - Organizer chỉ có quyền trên chiến dịch của tổ chức mình
+    if (actor.systemRole === SystemRole.ADMIN) {
+      if (dto.status === EventStatus.PUBLISHED) {
+        const org = await this.prisma.organization.findUnique({
+          where: { id: event.organizationId },
+        });
+        if (!org || org.status !== OrgStatus.APPROVED) {
+          throw new ForbiddenException(
+            'The organization must be approved before publishing events',
+          );
+        }
+      }
     } else {
-      await this.organizationAccessService.requireOrganizer(
-        actor.id,
-        event.organizationId,
-      );
+      if (dto.status === EventStatus.PUBLISHED) {
+        await this.organizationAccessService.requireApprovedOrganizer(
+          actor.id,
+          event.organizationId,
+        );
+      } else {
+        await this.organizationAccessService.requireOrganizer(
+          actor.id,
+          event.organizationId,
+        );
+      }
     }
 
     // 3. Cập nhật trạng thái và ghi nhận Transparency Audit Log trong cùng 1 transaction
