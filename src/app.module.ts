@@ -21,6 +21,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
 
 import { HealthModule } from './modules/health/health.module.js';
+import { MailModule } from './modules/mail/mail.module.js';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { HealthModule } from './modules/health/health.module.js';
       validate,
     }),
     PrismaModule,
+    MailModule,
     HealthModule,
     AuthModule,
     UsersModule,
