@@ -529,3 +529,21 @@ enum TransparencyEntityType {
   DISTRIBUTION_RECORD
   EVIDENCE
 }
+
+enum OtpType {
+  REGISTER
+  FORGOT_PASSWORD
+}
+
+model OtpVerification {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String   @db.VarChar(255)
+  code      String   @db.VarChar(10)
+  type      OtpType
+  expiresAt DateTime @db.Timestamptz(6)
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([email, type], map: "idx_otp_verifications_email_type")
+  @@map("otp_verifications")
+}
