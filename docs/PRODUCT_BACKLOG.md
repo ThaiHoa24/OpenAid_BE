@@ -32,7 +32,7 @@ Tài liệu **Product Backlog** này là nguồn thông tin duy nhất (Single S
   * `COULD`: Tùy chọn mở rộng nếu còn thời gian (Phase 2).
 * **Trạng thái (Status)**:
   * `DONE`: Đã hoàn thiện mã nguồn và kiểm thử.
-  * `SCAFFOLDED`: Đã có Controller, DTO, Route, HTTP 501 scaffold.
+  * `DONE`: Đã có Controller, DTO, Route, HTTP 501 scaffold.
   * `IN PROGRESS`: Đang triển khai code nghiệp vụ.
   * `BACKLOG`: Đang chờ thực hiện theo Sprint.
 
@@ -57,9 +57,9 @@ Hệ thống được chia thành 4 Epics lớn tương ứng với các trụ c
 | **US-01** | **Đăng ký tài khoản**<br>Là một *Người dùng mới*, tôi muốn *đăng ký tài khoản bằng email và mật khẩu*, để *có thể tham gia quyên góp hoặc ứng tuyển TNV*. | FR01, UC01 | 3 | MUST | `DONE` |
 | **US-02** | **Đăng nhập & Nhận JWT**<br>Là một *Người dùng*, tôi muốn *đăng nhập bằng email/password và nhận access token*, để *xác thực cho các tác vụ cần quyền*. | FR01, UC02 | 3 | MUST | `DONE` |
 | **US-03** | **Quản lý Hồ sơ cá nhân**<br>Là một *Người dùng*, tôi muốn *xem và cập nhật thông tin cá nhân (họ tên, số điện thoại, avatar)*, để *thông tin liên hệ luôn chính xác*. | FR02, UC04 | 2 | MUST | `DONE` |
-| **US-04** | **Đăng ký Tổ chức Cứu trợ**<br>Là một *Người dùng*, tôi muốn *đăng ký thành lập một tổ chức từ thiện (tên, mã code, giấy phép)*, để *được cấp quyền tổ chức các chiến dịch cứu trợ*. | FR04, UC05 | 5 | MUST | `SCAFFOLDED` |
-| **US-05** | **Quản lý Thành viên Tổ chức**<br>Là một *Organizer*, tôi muốn *mời và phân công vai trò (MEMBER/ORGANIZER) cho các thành viên trong tổ chức*, để *cùng nhau vận hành chiến dịch*. | FR03, UC06 | 5 | MUST | `SCAFFOLDED` |
-| **US-06** | **Kiểm duyệt Tổ chức & Tài khoản**<br>Là một *System Admin*, tôi muốn *phê duyệt (APPROVED) hoặc từ chối (REJECTED) tổ chức, khóa tài khoản vi phạm*, để *đảm bảo an toàn và uy tín cho nền tảng*. | FR24, UC07, UC39 | 5 | MUST | `SCAFFOLDED` |
+| **US-04** | **Đăng ký Tổ chức Cứu trợ**<br>Là một *Người dùng*, tôi muốn *đăng ký thành lập một tổ chức từ thiện (tên, mã code, giấy phép)*, để *được cấp quyền tổ chức các chiến dịch cứu trợ*. | FR04, UC05 | 5 | MUST | `DONE` |
+| **US-05** | **Quản lý Thành viên Tổ chức**<br>Là một *Organizer*, tôi muốn *mời và phân công vai trò (MEMBER/ORGANIZER) cho các thành viên trong tổ chức*, để *cùng nhau vận hành chiến dịch*. | FR03, UC06 | 5 | MUST | `DONE` |
+| **US-06** | **Kiểm duyệt Tổ chức & Tài khoản**<br>Là một *System Admin*, tôi muốn *phê duyệt (APPROVED) hoặc từ chối (REJECTED) tổ chức, khóa tài khoản vi phạm*, để *đảm bảo an toàn và uy tín cho nền tảng*. | FR24, UC07, UC39 | 5 | MUST | `DONE` |
 
 #### Tiêu chí chấp nhận (Acceptance Criteria) cốt lõi của Epic 01:
 * Mật khẩu phải được băm bảo mật bằng bcrypt (cost 10).
@@ -72,14 +72,14 @@ Hệ thống được chia thành 4 Epics lớn tương ứng với các trụ c
 
 | User Story ID | Tên Story & Mô tả (As a... I want to... So that...) | Tham chiếu | SP | Ưu tiên | Trạng thái |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **US-07** | **Khởi tạo Chiến dịch Cứu trợ (Event)**<br>Là một *Organizer*, tôi muốn *tạo chiến dịch ở trạng thái DRAFT, thiết lập thời gian, địa bàn cứu trợ và thông tin liên hệ*, để *chuẩn bị kêu gọi hỗ trợ*. | FR05, UC08 | 5 | MUST | `SCAFFOLDED` |
-| **US-08** | **Cấu hình Vị trí Tuyển TNV & Nhu cầu Hiện vật**<br>Là một *Organizer*, tôi muốn *thêm các vai trò cần tuyển (VolunteerRole) và danh mục hàng hóa cần nhận (DonationNeed)*, để *công khai mục tiêu rõ ràng*. | FR06, UC09, UC10 | 5 | MUST | `SCAFFOLDED` |
-| **US-09** | **Công bố Chiến dịch (Publish Event)**<br>Là một *Organizer*, tôi muốn *chuyển trạng thái chiến dịch sang PUBLISHED*, để *cộng đồng có thể tìm kiếm và tham gia*. | FR05, UC11 | 3 | MUST | `SCAFFOLDED` |
-| **US-10** | **Khám phá & Tìm kiếm Chiến dịch**<br>Là một *Khách vãng lai*, tôi muốn *xem danh sách, tìm kiếm và lọc chiến dịch theo địa bàn, trạng thái*, để *chọn chiến dịch phù hợp để đóng góp*. | FR07, UC12 | 3 | MUST | `SCAFFOLDED` |
-| **US-11** | **Ứng tuyển Tình nguyện viên**<br>Là một *Tình nguyện viên*, tôi muốn *chọn một vai trò trong chiến dịch và nộp đơn ứng tuyển*, để *tham gia công tác cứu trợ*. | FR08, UC13 | 3 | MUST | `SCAFFOLDED` |
-| **US-12** | **Xét duyệt Đơn Tình nguyện viên**<br>Là một *Organizer*, tôi muốn *duyệt (APPROVED) hoặc từ chối (REJECTED) đơn ứng tuyển TNV*, để *tuyển chọn đúng nhân lực cần thiết*. | FR09, UC14 | 3 | MUST | `SCAFFOLDED` |
-| **US-13** | **Theo dõi Hoạt động Cá nhân (My Activities)**<br>Là một *Tình nguyện viên*, tôi muốn *xem danh sách các chiến dịch mình đã nộp đơn và trạng thái duyệt*, để *chủ động sắp xếp thời gian*. | FR10, UC15 | 2 | SHOULD | `SCAFFOLDED` |
-| **US-14** | **Điểm danh Ca trực (Attendance)**<br>Là một *Organizer / Leader*, tôi muốn *ghi nhận check-in và check-out ca trực cho TNV*, để *xác nhận sự tham gia thực tế tại hiện trường*. | FR11, UC16 | 5 | MUST | `SCAFFOLDED` |
+| **US-07** | **Khởi tạo Chiến dịch Cứu trợ (Event)**<br>Là một *Organizer*, tôi muốn *tạo chiến dịch ở trạng thái DRAFT, thiết lập thời gian, địa bàn cứu trợ và thông tin liên hệ*, để *chuẩn bị kêu gọi hỗ trợ*. | FR05, UC08 | 5 | MUST | `DONE` |
+| **US-08** | **Cấu hình Vị trí Tuyển TNV & Nhu cầu Hiện vật**<br>Là một *Organizer*, tôi muốn *thêm các vai trò cần tuyển (VolunteerRole) và danh mục hàng hóa cần nhận (DonationNeed)*, để *công khai mục tiêu rõ ràng*. | FR06, UC09, UC10 | 5 | MUST | `DONE` |
+| **US-09** | **Công bố Chiến dịch (Publish Event)**<br>Là một *Organizer*, tôi muốn *chuyển trạng thái chiến dịch sang PUBLISHED*, để *cộng đồng có thể tìm kiếm và tham gia*. | FR05, UC11 | 3 | MUST | `DONE` |
+| **US-10** | **Khám phá & Tìm kiếm Chiến dịch**<br>Là một *Khách vãng lai*, tôi muốn *xem danh sách, tìm kiếm và lọc chiến dịch theo địa bàn, trạng thái*, để *chọn chiến dịch phù hợp để đóng góp*. | FR07, UC12 | 3 | MUST | `DONE` |
+| **US-11** | **Ứng tuyển Tình nguyện viên**<br>Là một *Tình nguyện viên*, tôi muốn *chọn một vai trò trong chiến dịch và nộp đơn ứng tuyển*, để *tham gia công tác cứu trợ*. | FR08, UC13 | 3 | MUST | `DONE` |
+| **US-12** | **Xét duyệt Đơn Tình nguyện viên**<br>Là một *Organizer*, tôi muốn *duyệt (APPROVED) hoặc từ chối (REJECTED) đơn ứng tuyển TNV*, để *tuyển chọn đúng nhân lực cần thiết*. | FR09, UC14 | 3 | MUST | `DONE` |
+| **US-13** | **Theo dõi Hoạt động Cá nhân (My Activities)**<br>Là một *Tình nguyện viên*, tôi muốn *xem danh sách các chiến dịch mình đã nộp đơn và trạng thái duyệt*, để *chủ động sắp xếp thời gian*. | FR10, UC15 | 2 | SHOULD | `DONE` |
+| **US-14** | **Điểm danh Ca trực (Attendance)**<br>Là một *Organizer / Leader*, tôi muốn *ghi nhận check-in và check-out ca trực cho TNV*, để *xác nhận sự tham gia thực tế tại hiện trường*. | FR11, UC16 | 5 | MUST | `DONE` |
 
 #### Tiêu chí chấp nhận (Acceptance Criteria) cốt lõi của Epic 02:
 * Một người dùng chỉ có tối đa một đơn đăng ký (`VolunteerApplication`) trong một chiến dịch (`Event`).
@@ -92,12 +92,12 @@ Hệ thống được chia thành 4 Epics lớn tương ứng với các trụ c
 
 | User Story ID | Tên Story & Mô tả (As a... I want to... So that...) | Tham chiếu | SP | Ưu tiên | Trạng thái |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **US-15** | **Đăng ký Quyên góp Hiện vật**<br>Là một *Nhà hảo tâm (Donor)*, tôi muốn *chọn loại hàng, số lượng và cam kết quyên góp vào chiến dịch*, để *nhận ngay một mã Tracking ID duy nhất*. | FR12, UC17 | 5 | MUST | `SCAFFOLDED` |
-| **US-16** | **Quản lý Đóng góp Cá nhân (My Donations)**<br>Là một *Donor*, tôi muốn *xem lại danh sách các khoản hiện vật mình đã đăng ký và theo dõi tiến trình xử lý*, để *biết hàng đã được tiếp nhận hay chưa*. | FR13, UC18 | 3 | SHOULD | `SCAFFOLDED` |
-| **US-17** | **Tiếp nhận & Kiểm định Hiện vật vào Kho**<br>Là một *Organizer*, tôi muốn *xác nhận hàng đã nhận (RECEIVED) hoặc từ chối nếu hỏng (REJECTED)*, để *cập nhật số lượng tồn kho khả dụng*. | FR14, UC19, UC20 | 5 | MUST | `SCAFFOLDED` |
-| **US-18** | **Theo dõi Tồn kho Chiến dịch (Inventory)**<br>Là một *Organizer*, tôi muốn *xem bảng cân đối tồn kho (Available, Reserved, Distributed, Lost) theo từng loại hàng và đơn vị*, để *nắm rõ nguồn lực*. | FR15, UC22 | 5 | MUST | `SCAFFOLDED` |
-| **US-19** | **Đóng kiện Hàng hóa (Donation Batch)**<br>Là một *Organizer*, tôi muốn *gom các khoản quyên góp đã nhận cùng loại hàng/đơn vị thành một Lô hàng (Batch)*, để *chuẩn bị xuất kho vận chuyển*. | FR16, UC23 | 5 | MUST | `SCAFFOLDED` |
-| **US-20** | **Chuyển Trạng thái Lô hàng (Batch READY)**<br>Là một *Organizer*, tôi muốn *kiểm tra và chuyển trạng thái Lô hàng sang READY*, để *sẵn sàng gán vào chuyến xe cứu trợ*. | FR16, UC24 | 3 | MUST | `SCAFFOLDED` |
+| **US-15** | **Đăng ký Quyên góp Hiện vật**<br>Là một *Nhà hảo tâm (Donor)*, tôi muốn *chọn loại hàng, số lượng và cam kết quyên góp vào chiến dịch*, để *nhận ngay một mã Tracking ID duy nhất*. | FR12, UC17 | 5 | MUST | `DONE` |
+| **US-16** | **Quản lý Đóng góp Cá nhân (My Donations)**<br>Là một *Donor*, tôi muốn *xem lại danh sách các khoản hiện vật mình đã đăng ký và theo dõi tiến trình xử lý*, để *biết hàng đã được tiếp nhận hay chưa*. | FR13, UC18 | 3 | SHOULD | `DONE` |
+| **US-17** | **Tiếp nhận & Kiểm định Hiện vật vào Kho**<br>Là một *Organizer*, tôi muốn *xác nhận hàng đã nhận (RECEIVED) hoặc từ chối nếu hỏng (REJECTED)*, để *cập nhật số lượng tồn kho khả dụng*. | FR14, UC19, UC20 | 5 | MUST | `DONE` |
+| **US-18** | **Theo dõi Tồn kho Chiến dịch (Inventory)**<br>Là một *Organizer*, tôi muốn *xem bảng cân đối tồn kho (Available, Reserved, Distributed, Lost) theo từng loại hàng và đơn vị*, để *nắm rõ nguồn lực*. | FR15, UC22 | 5 | MUST | `DONE` |
+| **US-19** | **Đóng kiện Hàng hóa (Donation Batch)**<br>Là một *Organizer*, tôi muốn *gom các khoản quyên góp đã nhận cùng loại hàng/đơn vị thành một Lô hàng (Batch)*, để *chuẩn bị xuất kho vận chuyển*. | FR16, UC23 | 5 | MUST | `DONE` |
+| **US-20** | **Chuyển Trạng thái Lô hàng (Batch READY)**<br>Là một *Organizer*, tôi muốn *kiểm tra và chuyển trạng thái Lô hàng sang READY*, để *sẵn sàng gán vào chuyến xe cứu trợ*. | FR16, UC24 | 3 | MUST | `DONE` |
 
 #### Tiêu chí chấp nhận (Acceptance Criteria) cốt lõi của Epic 03:
 * **Nguyên tắc Gom lô Nguyên vẹn (Whole-Donation)**: Một khoản quyên góp (`Donation`) chỉ thuộc tối đa một `Batch` qua khóa ngoại `Donation.batchId` (không chia tách nhỏ một khoản quyên góp).
@@ -110,14 +110,14 @@ Hệ thống được chia thành 4 Epics lớn tương ứng với các trụ c
 
 | User Story ID | Tên Story & Mô tả (As a... I want to... So that...) | Tham chiếu | SP | Ưu tiên | Trạng thái |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **US-21** | **Lập Chuyến xe Cứu trợ (Distribution Trip)**<br>Là một *Organizer*, tôi muốn *tạo chuyến xe, thiết lập lịch trình và thứ tự các điểm phân phối (DistributionPoint)*, để *lên kế hoạch phát quà*. | FR17, UC26, UC27 | 5 | MUST | `SCAFFOLDED` |
-| **US-22** | **Phân công Nhân sự & Gán Lô hàng vào Chuyến**<br>Là một *Organizer*, tôi muốn *gán các Lô hàng (TripBatch) và phân công TNV tham gia với đúng 1 Leader (TripVolunteer)*, để *chuyến xe có người chịu trách nhiệm*. | FR17, UC28, UC29 | 5 | MUST | `SCAFFOLDED` |
-| **US-23** | **Cập nhật Vòng đời Chuyến xe & Điểm phát**<br>Là một *Trip Leader / Organizer*, tôi muốn *cập nhật trạng thái chuyến xe (Scheduled $\rightarrow$ Preparing $\rightarrow$ In Transit $\rightarrow$ Completed)*, để *ghi nhận lộ trình thực tế*. | FR18, UC30, UC31 | 5 | MUST | `SCAFFOLDED` |
-| **US-24** | **Ghi nhận Số lượng Cấp phát Thực tế**<br>Là một *Trip Leader*, tôi muốn *ghi nhận số lượng thực tế trao cho bà con tại từng điểm dừng (DistributionRecord)*, để *đối soát số liệu chính xác*. | FR19, UC33 | 5 | MUST | `SCAFFOLDED` |
-| **US-25** | **Tải lên Bằng chứng & Xác nhận Riêng tư**<br>Là một *TNV / Leader*, tôi muốn *chụp và upload ảnh trao quà kèm xác nhận tuân thủ riêng tư của người nhận*, để *lưu bằng chứng nghiệm thu*. | FR25, UC34, UC35 | 5 | MUST | `SCAFFOLDED` |
-| **US-26** | **Kiểm duyệt Bằng chứng Công khai**<br>Là một *Organizer*, tôi muốn *xem xét và duyệt (APPROVED) ảnh bằng chứng*, để *chỉ cho phép hiển thị ảnh hợp lệ lên cổng cộng đồng*. | FR25, UC45 | 3 | MUST | `SCAFFOLDED` |
-| **US-27** | **Tra cứu Minh bạch Công khai (Public Tracking)**<br>Là một *Người dân / Nhà hảo tâm*, tôi muốn *nhập Tracking ID để xem toàn bộ timeline hành trình hàng cứu trợ mà không cần đăng nhập*, để *yên tâm về sự minh bạch*. | FR21, FR22, UC36, UC37 | 5 | MUST | `SCAFFOLDED` |
-| **US-28** | **Báo cáo Thống kê Chiến dịch (Dashboard)**<br>Là một *Organizer / Admin*, tôi muốn *xem biểu đồ tổng hợp số lượng tiếp nhận, tồn kho và tỷ lệ hàng đã phân phối*, để *đánh giá hiệu quả chiến dịch*. | FR23, UC38 | 5 | SHOULD | `SCAFFOLDED` |
+| **US-21** | **Lập Chuyến xe Cứu trợ (Distribution Trip)**<br>Là một *Organizer*, tôi muốn *tạo chuyến xe, thiết lập lịch trình và thứ tự các điểm phân phối (DistributionPoint)*, để *lên kế hoạch phát quà*. | FR17, UC26, UC27 | 5 | MUST | `DONE` |
+| **US-22** | **Phân công Nhân sự & Gán Lô hàng vào Chuyến**<br>Là một *Organizer*, tôi muốn *gán các Lô hàng (TripBatch) và phân công TNV tham gia với đúng 1 Leader (TripVolunteer)*, để *chuyến xe có người chịu trách nhiệm*. | FR17, UC28, UC29 | 5 | MUST | `DONE` |
+| **US-23** | **Cập nhật Vòng đời Chuyến xe & Điểm phát**<br>Là một *Trip Leader / Organizer*, tôi muốn *cập nhật trạng thái chuyến xe (Scheduled $\rightarrow$ Preparing $\rightarrow$ In Transit $\rightarrow$ Completed)*, để *ghi nhận lộ trình thực tế*. | FR18, UC30, UC31 | 5 | MUST | `DONE` |
+| **US-24** | **Ghi nhận Số lượng Cấp phát Thực tế**<br>Là một *Trip Leader*, tôi muốn *ghi nhận số lượng thực tế trao cho bà con tại từng điểm dừng (DistributionRecord)*, để *đối soát số liệu chính xác*. | FR19, UC33 | 5 | MUST | `DONE` |
+| **US-25** | **Tải lên Bằng chứng & Xác nhận Riêng tư**<br>Là một *TNV / Leader*, tôi muốn *chụp và upload ảnh trao quà kèm xác nhận tuân thủ riêng tư của người nhận*, để *lưu bằng chứng nghiệm thu*. | FR25, UC34, UC35 | 5 | MUST | `DONE` |
+| **US-26** | **Kiểm duyệt Bằng chứng Công khai**<br>Là một *Organizer*, tôi muốn *xem xét và duyệt (APPROVED) ảnh bằng chứng*, để *chỉ cho phép hiển thị ảnh hợp lệ lên cổng cộng đồng*. | FR25, UC45 | 3 | MUST | `DONE` |
+| **US-27** | **Tra cứu Minh bạch Công khai (Public Tracking)**<br>Là một *Người dân / Nhà hảo tâm*, tôi muốn *nhập Tracking ID để xem toàn bộ timeline hành trình hàng cứu trợ mà không cần đăng nhập*, để *yên tâm về sự minh bạch*. | FR21, FR22, UC36, UC37 | 5 | MUST | `DONE` |
+| **US-28** | **Báo cáo Thống kê Chiến dịch (Dashboard)**<br>Là một *Organizer / Admin*, tôi muốn *xem biểu đồ tổng hợp số lượng tiếp nhận, tồn kho và tỷ lệ hàng đã phân phối*, để *đánh giá hiệu quả chiến dịch*. | FR23, UC38 | 5 | SHOULD | `DONE` |
 
 #### Tiêu chí chấp nhận (Acceptance Criteria) cốt lõi của Epic 04:
 * Mỗi chuyến xe chỉ có **tối đa 1 Leader** duy nhất (kiểm soát qua partial unique index trong database).

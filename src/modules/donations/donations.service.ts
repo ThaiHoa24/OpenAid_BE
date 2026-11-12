@@ -54,6 +54,7 @@ export class DonationsService {
           unitId: need.unitId,
           donorId,
           quantity: quantityDecimal,
+          photoUrl: dto.photoUrl?.trim() || null,
           status: DonationStatus.PENDING,
         },
         tx,
@@ -71,6 +72,8 @@ export class DonationsService {
           quantity: dto.quantity,
           itemType: need.itemType.name,
           unit: need.unit.name,
+          ...(dto.photoUrl?.trim() ? { photoUrl: dto.photoUrl.trim() } : {}),
+          ...(dto.notes?.trim() ? { notes: dto.notes.trim() } : {}),
         },
         isPublic: true,
       });

@@ -20,7 +20,10 @@ import {
   CreateEventDto,
   DonationNeedInputDto,
   EventQueryDto,
+  UpdateDonationNeedDto,
   UpdateEventDto,
+  UpdateVolunteerRoleDto,
+  VolunteerRoleInputDto,
 } from './dto/index.js';
 import { CurrentUser, Public } from '../../common/decorators/index.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
@@ -44,6 +47,78 @@ export class EventsController {
   @ApiResponse({ status: 200, description: 'List of active units' })
   getUnits() {
     return this.service.getActiveUnits();
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @Patch('donation-needs/:id')
+  @ApiOperation({
+    summary: 'EVT-SUB: Update an individual donation need by ID',
+  })
+  @ApiResponse({ status: 200, description: 'Donation need updated' })
+  @ApiResponse({ status: 400, description: 'Invalid data or state' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Donation need not found' })
+  updateDonationNeedById(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateDonationNeedDto,
+  ) {
+    return this.service.updateDonationNeed(actor, id, dto);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @Delete('donation-needs/:id')
+  @ApiOperation({
+    summary: 'EVT-SUB: Delete an individual donation need by ID',
+  })
+  @ApiResponse({ status: 200, description: 'Donation need removed' })
+  @ApiResponse({
+    status: 400,
+    description: 'Event not in DRAFT status or has existing donations',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Donation need not found' })
+  removeDonationNeedById(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.service.removeDonationNeedById(actor, id);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @Patch('volunteer-roles/:id')
+  @ApiOperation({
+    summary: 'EVT-SUB: Update an individual volunteer role by ID',
+  })
+  @ApiResponse({ status: 200, description: 'Volunteer role updated' })
+  @ApiResponse({ status: 400, description: 'Invalid data or duplicate name' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Volunteer role not found' })
+  updateVolunteerRoleById(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateVolunteerRoleDto,
+  ) {
+    return this.service.updateVolunteerRole(actor, id, dto);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @Delete('volunteer-roles/:id')
+  @ApiOperation({
+    summary: 'EVT-SUB: Delete an individual volunteer role by ID',
+  })
+  @ApiResponse({ status: 200, description: 'Volunteer role removed' })
+  @ApiResponse({
+    status: 400,
+    description: 'Volunteer role has existing applications',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Volunteer role not found' })
+  removeVolunteerRoleById(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.service.removeVolunteerRole(actor, id);
   }
 
   @Public()
@@ -98,6 +173,24 @@ export class EventsController {
   }
 
   @ApiBearerAuth('JWT-auth')
+  @Patch(':id/donation-needs/:needId')
+  @ApiOperation({
+    summary: 'EVT-SUB: Update a donation need of an event',
+  })
+  @ApiResponse({ status: 200, description: 'Donation need updated' })
+  @ApiResponse({ status: 400, description: 'Invalid data or state' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Donation need or event not found' })
+  updateDonationNeed(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('needId') needId: string,
+    @Body() dto: UpdateDonationNeedDto,
+  ) {
+    return this.service.updateDonationNeed(actor, needId, dto, id);
+  }
+
+  @ApiBearerAuth('JWT-auth')
   @Delete(':id/donation-needs/:needId')
   @ApiOperation({ summary: 'Remove a donation need from a DRAFT event' })
   @ApiResponse({ status: 200, description: 'Donation need removed' })
@@ -113,6 +206,72 @@ export class EventsController {
     @Param('needId') needId: string,
   ) {
     return this.service.removeDonationNeed(actor, id, needId);
+  }
+
+  @Public()
+  @Get(':id/volunteer-roles')
+  @ApiOperation({
+    summary: 'EVT-SUB: Public discovery: get volunteer roles for an event',
+  })
+  @ApiResponse({ status: 200, description: 'List of volunteer roles' })
+  @ApiResponse({ status: 404, description: 'Event not found' })
+  getVolunteerRoles(@Param('id') id: string) {
+    return this.service.getVolunteerRoles(id);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @Post(':id/volunteer-roles')
+  @ApiOperation({
+    summary: 'EVT-SUB: Add a volunteer role to an event',
+  })
+  @ApiResponse({ status: 201, description: 'Volunteer role added' })
+  @ApiResponse({ status: 400, description: 'Duplicate name or invalid state' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Event not found' })
+  addVolunteerRole(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: VolunteerRoleInputDto,
+  ) {
+    return this.service.addVolunteerRole(actor, id, dto);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @Patch(':id/volunteer-roles/:roleId')
+  @ApiOperation({
+    summary: 'EVT-SUB: Update a volunteer role of an event',
+  })
+  @ApiResponse({ status: 200, description: 'Volunteer role updated' })
+  @ApiResponse({ status: 400, description: 'Invalid data or duplicate name' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Volunteer role or event not found' })
+  updateVolunteerRole(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('roleId') roleId: string,
+    @Body() dto: UpdateVolunteerRoleDto,
+  ) {
+    return this.service.updateVolunteerRole(actor, roleId, dto, id);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @Delete(':id/volunteer-roles/:roleId')
+  @ApiOperation({
+    summary: 'EVT-SUB: Remove a volunteer role from an event',
+  })
+  @ApiResponse({ status: 200, description: 'Volunteer role removed' })
+  @ApiResponse({
+    status: 400,
+    description: 'Volunteer role has existing applications',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Volunteer role or event not found' })
+  removeVolunteerRole(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('roleId') roleId: string,
+  ) {
+    return this.service.removeVolunteerRole(actor, roleId, id);
   }
 
   @ApiBearerAuth('JWT-auth')

@@ -62,6 +62,12 @@ describe('EventsService', () => {
       findDonationNeedById: vi.fn(),
       createDonationNeed: vi.fn(),
       deleteDonationNeed: vi.fn(),
+      updateDonationNeed: vi.fn(),
+      findVolunteerRolesByEventId: vi.fn(),
+      findVolunteerRoleById: vi.fn(),
+      createVolunteerRole: vi.fn(),
+      updateVolunteerRole: vi.fn(),
+      deleteVolunteerRole: vi.fn(),
     } as unknown as EventsRepository;
 
     prisma = {
@@ -456,6 +462,72 @@ describe('EventsService', () => {
       await expect(
         service.removeDonationNeed(mockActor, sampleEvent.id, 'need-1'),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('EVT-SUB: updates an individual donation need targetQuantity', async () => {
+      vi.spyOn(repository, 'findDonationNeedById').mockResolvedValue({
+        id: 'need-1',
+        eventId: sampleEvent.id,
+        itemTypeId: 'item-1',
+        unitId: 'unit-1',
+        event: sampleEvent,
+      } as any);
+      organizationAccessService.requireOrganizer.mockResolvedValue({ id: 'm1' });
+      vi.spyOn(repository, 'updateDonationNeed').mockResolvedValue({
+        id: 'need-1',
+        targetQuantity: 250,
+      } as any);
+
+      const updated = await service.updateDonationNeed(mockActor, 'need-1', {
+        targetQuantity: 250,
+        notes: 'Tăng định mức gạo',
+      });
+      expect(updated.targetQuantity).toBe(250);
+    });
+
+    it('EVT-SUB: adds, updates and deletes an individual volunteer role', async () => {
+      vi.spyOn(repository, 'findById').mockResolvedValue(sampleEvent as any);
+      organizationAccessService.requireOrganizer.mockResolvedValue({ id: 'm1' });
+      vi.spyOn(repository, 'findVolunteerRolesByEventId').mockResolvedValue([]);
+      vi.spyOn(repository, 'createVolunteerRole').mockResolvedValue({
+        id: 'role-1',
+        name: 'Tài xế xe tải',
+        quantity: 4,
+      } as any);
+
+      const created = await service.addVolunteerRole(mockActor, sampleEvent.id, {
+        name: 'Tài xế xe tải',
+        quantity: 4,
+      });
+      expect(created.name).toBe('Tài xế xe tải');
+
+      vi.spyOn(repository, 'findVolunteerRoleById').mockResolvedValue({
+        id: 'role-1',
+        eventId: sampleEvent.id,
+        name: 'Tài xế xe tải',
+        quantity: 4,
+        event: sampleEvent,
+      } as any);
+      vi.spyOn(repository, 'updateVolunteerRole').mockResolvedValue({
+        id: 'role-1',
+        name: 'Tài xế xe tải',
+        quantity: 6,
+      } as any);
+
+      const updatedRole = await service.updateVolunteerRole(
+        mockActor,
+        'role-1',
+        { quantity: 6 },
+      );
+      expect(updatedRole.quantity).toBe(6);
+
+      prisma.volunteerApplication.count.mockResolvedValue(0);
+      vi.spyOn(repository, 'deleteVolunteerRole').mockResolvedValue({
+        id: 'role-1',
+      } as any);
+
+      const deleted = await service.removeVolunteerRole(mockActor, 'role-1');
+      expect(deleted.id).toBe('role-1');
     });
   });
 });

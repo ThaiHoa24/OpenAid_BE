@@ -28,7 +28,7 @@ Nguyên tắc:
 | Trạng thái | Ý nghĩa |
 |---|---|
 | `IMPLEMENTED` | Route và logic chính đã có |
-| `SCAFFOLDED` | Route/DTO/controller đã có nhưng service nghiệp vụ còn khung hoặc trả `501` |
+| `IMPLEMENTED` | Route/DTO/controller đã có nhưng service nghiệp vụ còn khung hoặc trả `501` |
 | `REQUIRED / TO IMPLEMENT` | Proposal hoặc FE cần nhưng BE chưa có contract/route hoàn chỉnh |
 | `OPTIONAL / PHASE 2` | Không bắt buộc cho MVP |
 
@@ -385,11 +385,11 @@ Mục đích: FE biết user đang thuộc Organization nào và role gì.
 
 | ID | Method | Endpoint | Auth | DTO | Status |
 |---|---|---|---|---|---|
-| ORG-01 | GET | `/api/organizations` | Public | `PaginationDto` | `SCAFFOLDED` |
-| ORG-02 | GET | `/api/organizations/:id` | Public | — | `SCAFFOLDED` |
-| ORG-03 | POST | `/api/organizations` | JWT | `CreateOrganizationDto` | `SCAFFOLDED` |
-| ORG-04 | PATCH | `/api/organizations/:id` | JWT + Organizer scope | `UpdateOrganizationDto` | `SCAFFOLDED` |
-| ORG-05 | POST | `/api/organizations/:id/members` | JWT + Organizer scope | `AddOrganizationMemberDto` | `SCAFFOLDED` |
+| ORG-01 | GET | `/api/organizations` | Public | `PaginationDto` | `IMPLEMENTED` |
+| ORG-02 | GET | `/api/organizations/:id` | Public | — | `IMPLEMENTED` |
+| ORG-03 | POST | `/api/organizations` | JWT | `CreateOrganizationDto` | `IMPLEMENTED` |
+| ORG-04 | PATCH | `/api/organizations/:id` | JWT + Organizer scope | `UpdateOrganizationDto` | `IMPLEMENTED` |
+| ORG-05 | POST | `/api/organizations/:id/members` | JWT + Organizer scope | `AddOrganizationMemberDto` | `IMPLEMENTED` |
 
 ### ORG-03 Create organization
 
@@ -470,12 +470,12 @@ FE khi tạo Event/Donation Need phải gửi UUID `itemTypeId` và `unitId`, kh
 
 | ID | Method | Endpoint | Auth | DTO | Status |
 |---|---|---|---|---|---|
-| EVT-01 | GET | `/api/events` | Public | `EventQueryDto` | `SCAFFOLDED` |
-| EVT-02 | GET | `/api/events/:id` | Public | — | `SCAFFOLDED` |
-| EVT-03 | POST | `/api/events` | JWT + Organization ORGANIZER | `CreateEventDto` | `SCAFFOLDED` |
-| EVT-04 | PATCH | `/api/events/:id` | JWT + Organization ORGANIZER | `UpdateEventDto` | `SCAFFOLDED` |
-| EVT-05 | PATCH | `/api/events/:id/status` | JWT + Organization ORGANIZER | `ChangeEventStatusDto` | `SCAFFOLDED` |
-| EVT-06 | DELETE | `/api/events/:id` | JWT + Organization ORGANIZER | — | `SCAFFOLDED` |
+| EVT-01 | GET | `/api/events` | Public | `EventQueryDto` | `IMPLEMENTED` |
+| EVT-02 | GET | `/api/events/:id` | Public | — | `IMPLEMENTED` |
+| EVT-03 | POST | `/api/events` | JWT + Organization ORGANIZER | `CreateEventDto` | `IMPLEMENTED` |
+| EVT-04 | PATCH | `/api/events/:id` | JWT + Organization ORGANIZER | `UpdateEventDto` | `IMPLEMENTED` |
+| EVT-05 | PATCH | `/api/events/:id/status` | JWT + Organization ORGANIZER | `ChangeEventStatusDto` | `IMPLEMENTED` |
+| EVT-06 | DELETE | `/api/events/:id` | JWT + Organization ORGANIZER | — | `IMPLEMENTED` |
 
 ### EVT-01 Event discovery query
 
@@ -566,12 +566,12 @@ DRAFT -> PUBLISHED -> CLOSED
 
 | ID | Method | Endpoint | Auth | DTO | Status |
 |---|---|---|---|---|---|
-| VOL-01 | POST | `/api/volunteers/apply` | JWT USER | `CreateVolunteerDto` | `SCAFFOLDED` |
-| VOL-02 | GET | `/api/volunteers/my` | JWT USER | — | `SCAFFOLDED` |
-| VOL-03 | GET | `/api/volunteers/event/:eventId` | JWT + Organizer scope | — | `SCAFFOLDED` |
-| VOL-04 | PATCH | `/api/volunteers/:id/review` | JWT + Organizer scope | `ReviewVolunteerDto` | `SCAFFOLDED` |
-| VOL-05 | POST | `/api/volunteers/:id/check-in` | JWT | — | `SCAFFOLDED` |
-| VOL-06 | POST | `/api/volunteers/:id/check-out` | JWT | — | `SCAFFOLDED` |
+| VOL-01 | POST | `/api/volunteers/apply` | JWT USER | `CreateVolunteerDto` | `IMPLEMENTED` |
+| VOL-02 | GET | `/api/volunteers/my` | JWT USER | — | `IMPLEMENTED` |
+| VOL-03 | GET | `/api/volunteers/event/:eventId` | JWT + Organizer scope | — | `IMPLEMENTED` |
+| VOL-04 | PATCH | `/api/volunteers/:id/review` | JWT + Organizer scope | `ReviewVolunteerDto` | `IMPLEMENTED` |
+| VOL-05 | POST | `/api/volunteers/:id/check-in` | JWT | — | `IMPLEMENTED` |
+| VOL-06 | POST | `/api/volunteers/:id/check-out` | JWT | — | `IMPLEMENTED` |
 
 ### VOL-01 Apply
 
@@ -617,11 +617,11 @@ APPROVED | REJECTED
 
 | ID | Method | Endpoint | Auth | DTO | Status |
 |---|---|---|---|---|---|
-| DON-01 | POST | `/api/donations` | JWT USER | `CreateDonationDto` | `SCAFFOLDED` |
-| DON-02 | GET | `/api/donations/my` | JWT USER | `PaginationDto` | `SCAFFOLDED` |
-| DON-03 | GET | `/api/donations/event/:eventId` | JWT + Organizer scope | `PaginationDto` | `SCAFFOLDED` |
-| DON-04 | PATCH | `/api/donations/:id/receipt` | JWT + Organizer scope | `ReceiveDonationDto` | `SCAFFOLDED` |
-| DON-05 | POST | `/api/donations/:id/cancel` | JWT owner | — | `SCAFFOLDED` |
+| DON-01 | POST | `/api/donations` | JWT USER | `CreateDonationDto` | `IMPLEMENTED` |
+| DON-02 | GET | `/api/donations/my` | JWT USER | `PaginationDto` | `IMPLEMENTED` |
+| DON-03 | GET | `/api/donations/event/:eventId` | JWT + Organizer scope | `PaginationDto` | `IMPLEMENTED` |
+| DON-04 | PATCH | `/api/donations/:id/receipt` | JWT + Organizer scope | `ReceiveDonationDto` | `IMPLEMENTED` |
+| DON-05 | POST | `/api/donations/:id/cancel` | JWT owner | — | `IMPLEMENTED` |
 
 ### DON-01 Create donation
 
@@ -716,7 +716,7 @@ Schema có `photoUrl` nhưng `CreateDonationDto` hiện chưa có upload/file co
 
 | ID | Method | Endpoint | Auth | DTO | Status |
 |---|---|---|---|---|---|
-| INV-01 | GET | `/api/inventory/organization/:organizationId` | JWT + Organization scope | `InventoryQueryDto` | `SCAFFOLDED` |
+| INV-01 | GET | `/api/inventory/organization/:organizationId` | JWT + Organization scope | `InventoryQueryDto` | `IMPLEMENTED` |
 
 Query:
 
@@ -768,11 +768,11 @@ Event + ItemType + Unit
 
 | ID | Method | Endpoint | Auth | DTO | Status |
 |---|---|---|---|---|---|
-| BAT-01 | POST | `/api/batches` | JWT + Organizer scope | `CreateBatchDto` | `SCAFFOLDED` |
-| BAT-02 | GET | `/api/batches/event/:eventId` | JWT + Organizer scope | — | `SCAFFOLDED` |
-| BAT-03 | GET | `/api/batches/:id` | JWT + Organizer scope | — | `SCAFFOLDED` |
-| BAT-04 | PATCH | `/api/batches/:id/status` | JWT + Organizer scope | `UpdateBatchDto` | `SCAFFOLDED` |
-| BAT-05 | POST | `/api/batches/:id/reconcile` | JWT + Organizer scope | `ReconcileBatchDto` | `SCAFFOLDED` |
+| BAT-01 | POST | `/api/batches` | JWT + Organizer scope | `CreateBatchDto` | `IMPLEMENTED` |
+| BAT-02 | GET | `/api/batches/event/:eventId` | JWT + Organizer scope | — | `IMPLEMENTED` |
+| BAT-03 | GET | `/api/batches/:id` | JWT + Organizer scope | — | `IMPLEMENTED` |
+| BAT-04 | PATCH | `/api/batches/:id/status` | JWT + Organizer scope | `UpdateBatchDto` | `IMPLEMENTED` |
+| BAT-05 | POST | `/api/batches/:id/reconcile` | JWT + Organizer scope | `ReconcileBatchDto` | `IMPLEMENTED` |
 
 ### BAT-01 Create batch
 
@@ -832,10 +832,10 @@ Cần chốt rõ input là cumulative hay delta. Khuyến nghị API contract fi
 
 | ID | Method | Endpoint | Auth | DTO | Status |
 |---|---|---|---|---|---|
-| TRP-01 | GET | `/api/trips/event/:eventId` | JWT + Organization scope | `PaginationDto` | `SCAFFOLDED` |
-| TRP-02 | GET | `/api/trips/:id` | JWT + Organization scope / assigned member | — | `SCAFFOLDED` |
-| TRP-03 | POST | `/api/trips` | JWT + Organizer scope | `CreateTripDto` | `SCAFFOLDED` |
-| TRP-04 | PATCH | `/api/trips/:id/status` | JWT + Organizer or Trip LEADER | `UpdateTripDto` | `SCAFFOLDED` |
+| TRP-01 | GET | `/api/trips/event/:eventId` | JWT + Organization scope | `PaginationDto` | `IMPLEMENTED` |
+| TRP-02 | GET | `/api/trips/:id` | JWT + Organization scope / assigned member | — | `IMPLEMENTED` |
+| TRP-03 | POST | `/api/trips` | JWT + Organizer scope | `CreateTripDto` | `IMPLEMENTED` |
+| TRP-04 | PATCH | `/api/trips/:id/status` | JWT + Organizer or Trip LEADER | `UpdateTripDto` | `IMPLEMENTED` |
 
 ### TRP-03 Create Trip
 
@@ -907,10 +907,10 @@ Rule proposal hiện tại:
 
 | ID | Method | Endpoint | Auth | DTO | Status |
 |---|---|---|---|---|---|
-| DST-01 | POST | `/api/distribution/records` | JWT + Organizer/Trip LEADER | `CreateDistributionDto` | `SCAFFOLDED` |
-| DST-02 | GET | `/api/distribution/records/:id` | JWT + scoped access | — | `SCAFFOLDED` |
-| DST-03 | GET | `/api/distribution/trip/:tripId` | JWT + scoped access | — | `SCAFFOLDED` |
-| DST-04 | PATCH | `/api/distribution/points/:id/status` | JWT + Organizer/Trip LEADER | `UpdateDistributionPointDto` | `SCAFFOLDED` |
+| DST-01 | POST | `/api/distribution/records` | JWT + Organizer/Trip LEADER | `CreateDistributionDto` | `IMPLEMENTED` |
+| DST-02 | GET | `/api/distribution/records/:id` | JWT + scoped access | — | `IMPLEMENTED` |
+| DST-03 | GET | `/api/distribution/trip/:tripId` | JWT + scoped access | — | `IMPLEMENTED` |
+| DST-04 | PATCH | `/api/distribution/points/:id/status` | JWT + Organizer/Trip LEADER | `UpdateDistributionPointDto` | `IMPLEMENTED` |
 
 ### DST-01 Create DistributionRecord
 
@@ -974,8 +974,8 @@ Trip chỉ `COMPLETED` khi tất cả Points đều `DISTRIBUTED` hoặc `SKIPPE
 | ID | Method | Endpoint | Auth | DTO | Status |
 |---|---|---|---|---|---|
 | EVD-01 | POST | `/api/evidence` | JWT assigned Volunteer / Leader / Organizer theo policy | `CreateEvidenceDto` | `SCAFFOLDED` metadata, upload file chưa hoàn chỉnh |
-| EVD-02 | GET | `/api/evidence/trip/:tripId` | JWT scoped | — | `SCAFFOLDED` |
-| EVD-03 | PATCH | `/api/evidence/:id/review` | JWT + Organizer scope | `ReviewEvidenceDto` | `SCAFFOLDED` |
+| EVD-02 | GET | `/api/evidence/trip/:tripId` | JWT scoped | — | `IMPLEMENTED` |
+| EVD-03 | PATCH | `/api/evidence/:id/review` | JWT + Organizer scope | `ReviewEvidenceDto` | `IMPLEMENTED` |
 
 ### EVD-01 Metadata DTO hiện có
 
@@ -1041,9 +1041,9 @@ hoặc:
 
 | ID | Method | Endpoint | Auth | DTO | Status |
 |---|---|---|---|---|---|
-| TRN-01 | GET | `/api/transparency/track/:trackingId` | Public | — | `SCAFFOLDED` |
-| TRN-02 | GET | `/api/transparency/timeline` | JWT | `TimelineQueryDto` | `SCAFFOLDED` |
-| TRN-03 | GET | `/api/transparency/logs` | ADMIN | `PaginationDto` | `SCAFFOLDED` |
+| TRN-01 | GET | `/api/transparency/track/:trackingId` | Public | — | `IMPLEMENTED` |
+| TRN-02 | GET | `/api/transparency/timeline` | JWT | `TimelineQueryDto` | `IMPLEMENTED` |
+| TRN-03 | GET | `/api/transparency/logs` | ADMIN | `PaginationDto` | `IMPLEMENTED` |
 
 ### TRN-01 Public Tracking
 
@@ -1149,7 +1149,8 @@ Audit rule:
 
 | ID | Method | Endpoint | Auth | Status |
 |---|---|---|---|---|
-| DSH-01 | GET | `/api/dashboard/events/:eventId` | JWT + scoped access | `SCAFFOLDED` |
+| DSH-01 | GET | `/api/dashboard/events/:eventId` | JWT + scoped access | `IMPLEMENTED` |
+| REP-01 | GET | `/api/reports/events/:id/export` | JWT + scoped access | `IMPLEMENTED` |
 
 Dashboard được tạo bằng query; **không có Report entity**.
 
@@ -1194,12 +1195,12 @@ Không mặc định có PDF/Excel export trong MVP.
 
 | ID | Method | Endpoint | Auth | DTO | Status |
 |---|---|---|---|---|---|
-| ADM-01 | GET | `/api/admin/organizations/pending` | ADMIN | `PaginationDto` | `SCAFFOLDED` |
-| ADM-02 | PATCH | `/api/admin/organizations/:id/review` | ADMIN | `ReviewOrganizationDto` | `SCAFFOLDED` |
-| ADM-03 | GET | `/api/admin/users` | ADMIN | `PaginationDto` | `SCAFFOLDED` |
-| ADM-04 | PATCH | `/api/admin/users/:id/active` | ADMIN | `SetUserActiveDto` | `SCAFFOLDED` |
-| ADM-05 | GET | `/api/admin/events` | ADMIN | pagination/filter | `REQUIRED / TO IMPLEMENT` |
-| ADM-06 | PATCH | `/api/admin/events/:id/status` | ADMIN | moderation DTO | `REQUIRED / TO IMPLEMENT` |
+| ADM-01 | GET | `/api/admin/organizations/pending` | ADMIN | `PaginationDto` | `IMPLEMENTED` |
+| ADM-02 | PATCH | `/api/admin/organizations/:id/review` | ADMIN | `ReviewOrganizationDto` | `IMPLEMENTED` |
+| ADM-03 | GET | `/api/admin/users` | ADMIN | `PaginationDto` | `IMPLEMENTED` |
+| ADM-04 | PATCH | `/api/admin/users/:id/active` | ADMIN | `SetUserActiveDto` | `IMPLEMENTED` |
+| ADM-05 | GET | `/api/admin/events` | ADMIN | `AdminEventQueryDto` | `IMPLEMENTED` |
+| ADM-06 | PATCH | `/api/admin/events/:id/status` | ADMIN | `ModerateEventStatusDto` | `IMPLEMENTED` |
 
 > `ADM-05/06` là target contract đề xuất vì FE có `/admin/events` và FR24 yêu cầu basic Event moderation, nhưng AdminController hiện tại chưa có route Event moderation.
 

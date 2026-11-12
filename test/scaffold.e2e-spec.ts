@@ -77,6 +77,20 @@ describe('Backend foundation smoke tests (no database writes)', () => {
       paths['/api/transparency/track/{trackingId}'].get.security ?? [],
     ).toEqual([]);
     expect(paths['/api/trips'].post.responses).toHaveProperty('201');
+    // Verify ADM-05, ADM-06, REP-01, EVT-SUB contracts in OpenAPI
+    expect(paths['/api/admin/events'].get.security).toEqual([{ 'JWT-auth': [] }]);
+    expect(paths['/api/admin/events/{id}/status'].patch.security).toEqual([
+      { 'JWT-auth': [] },
+    ]);
+    expect(paths['/api/reports/events/{id}/export'].get.security).toEqual([
+      { 'JWT-auth': [] },
+    ]);
+    expect(paths['/api/events/donation-needs/{id}'].patch.security).toEqual([
+      { 'JWT-auth': [] },
+    ]);
+    expect(paths['/api/events/volunteer-roles/{id}'].patch.security).toEqual([
+      { 'JWT-auth': [] },
+    ]);
   });
 
   it('returns published events through public Event discovery', async () => {

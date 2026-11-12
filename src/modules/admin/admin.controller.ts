@@ -10,7 +10,12 @@ import { CurrentUser, Roles } from '../../common/decorators/index.js';
 import { SystemRole } from '../../common/enums/index.js';
 import { PaginationDto } from '../../common/dto/pagination.dto.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
-import { ReviewOrganizationDto, SetUserActiveDto } from './dto/index.js';
+import {
+  AdminEventQueryDto,
+  ModerateEventStatusDto,
+  ReviewOrganizationDto,
+  SetUserActiveDto,
+} from './dto/index.js';
 
 @ApiTags('Admin')
 @ApiBearerAuth('JWT-auth')
@@ -100,5 +105,48 @@ export class AdminController {
     @Body() dto: SetUserActiveDto,
   ) {
     return this.service.toggleUserActive(actor, id, dto);
+  }
+
+  @Get('events')
+  @ApiOperation({
+    summary:
+      'ADM-05: Admin xem, tìm kiếm và lọc danh sách tất cả sự kiện (theo tổ chức, trạng thái) kèm phân trang',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách toàn bộ sự kiện kèm thông tin tổ chức và người tạo',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Chỉ System Admin mới có quyền truy cập',
+  })
+  events(@Query() query: AdminEventQueryDto) {
+    return this.service.getAllEvents(query);
+  }
+
+  @Patch('events/:id/status')
+  @ApiOperation({
+    summary:
+      'ADM-06: Kiểm duyệt sự kiện cấp hệ thống (Admin đình chỉ SUSPENDED/CLOSED, mở lại PUBLISHED, hoặc cưỡng chế CANCELLED)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Trạng thái sự kiện đã được cập nhật và ghi nhận vào nhật ký kiểm toán',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Trạng thái chuyển đổi không hợp lệ',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Chỉ System Admin mới có quyền truy cập hoặc tổ chức chưa được duyệt',
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy sự kiện' })
+  moderateEventStatus(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: ModerateEventStatusDto,
+  ) {
+    return this.service.moderateEventStatus(actor, id, dto);
   }
 }

@@ -62,6 +62,10 @@ export class DonationNeedInputDto {
   notes?: string;
 }
 
+export class UpdateVolunteerRoleDto extends PartialType(VolunteerRoleInputDto) {}
+
+export class UpdateDonationNeedDto extends PartialType(DonationNeedInputDto) {}
+
 export class CreateEventDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
@@ -141,6 +145,11 @@ export class EventQueryDto extends PaginationDto {
   @IsOptional()
   @IsDateString()
   to?: string;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  organizationId?: string;
 
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()

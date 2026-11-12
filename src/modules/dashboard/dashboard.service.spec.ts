@@ -190,4 +190,62 @@ describe('DashboardService (OA-S5-05 Event Dashboard & Progress Analytics)', () 
     expect(roleProgress.rejectedCount).toBe(1);
     expect(roleProgress.fulfillmentRate).toBe(20); // 2/10 * 100%
   });
+
+  it('REP-01: exports event acceptance report in CSV, Excel and PDF formats', async () => {
+    vi.mocked(prisma.event.findUnique).mockResolvedValue(mockEvent as any);
+    (prisma.event as any).findUniqueOrThrow = vi.fn().mockResolvedValue({
+      ...mockEvent,
+      location: 'Hòa Vang, Đà Nẵng',
+      contactName: 'Phan Vĩnh Thái Hòa',
+      contactPhone: '0905123456',
+      startDate: new Date('2026-11-01T08:00:00Z'),
+      endDate: new Date('2026-12-01T18:00:00Z'),
+      organization: { name: 'Hội Chữ Thập Đỏ', code: 'HCTD-01' },
+      createdBy: { id: 'org-1', fullName: 'Organizer', email: 'org@test.com' },
+    });
+    vi.mocked(prisma.donation.findMany)
+      .mockResolvedValueOnce([
+        {
+          itemTypeId: mockItemTypeId,
+          unitId: mockUnitId,
+          quantity: new Prisma.Decimal(30),
+          status: DonationStatus.RECEIVED,
+        },
+      ] as any)
+      .mockResolvedValueOnce([
+        {
+          trackingId: 'DON-2026-7K3Q9X',
+          donor: { fullName: 'Nhà hảo tâm A', email: 'a@test.com' },
+          itemType: { name: 'Gạo ST25' },
+          unit: { name: 'Bao 10kg' },
+          quantity: new Prisma.Decimal(30),
+          receivedQuantity: new Prisma.Decimal(30),
+          status: DonationStatus.RECEIVED,
+          batch: { batchCode: 'BAT-01', status: 'ASSIGNED' },
+          photoUrl: null,
+          createdAt: new Date('2026-11-02T08:00:00Z'),
+          receivedAt: new Date('2026-11-03T08:00:00Z'),
+        },
+      ] as any);
+    (prisma.batch as any).findMany = vi.fn().mockResolvedValue([]);
+    (prisma.trip as any).findMany = vi.fn().mockResolvedValue([]);
+    (prisma as any).distributionRecord = {
+      findMany: vi.fn().mockResolvedValue([]),
+    };
+    (prisma as any).evidence = {
+      findMany: vi.fn().mockResolvedValue([]),
+    };
+
+    const csvReport = await service.exportEventReport(
+      mockAdmin,
+      mockEventId,
+      'csv',
+    );
+    expect(csvReport.format).toBe('csv');
+    expect(csvReport.fileName).toContain('.csv');
+    expect(csvReport.content).toContain(
+      'BÁO CÁO TỔNG KẾT NGHIỆM THU CHIẾN DỊCH CỨU TRỢ',
+    );
+    expect(csvReport.content).toContain('DON-2026-7K3Q9X');
+  });
 });

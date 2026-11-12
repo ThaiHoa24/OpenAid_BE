@@ -156,6 +156,39 @@ describe('DonationsService', () => {
       );
     });
 
+    it('DON-IMG: persists photoUrl and records notes in transparency log when provided', async () => {
+      repository.findNeedWithEvent.mockResolvedValue(sampleNeed);
+      repository.create.mockImplementation(async (data: any) => ({
+        ...sampleDonation,
+        ...data,
+        id: 'new-donation-photo-id',
+      }));
+
+      const result = await service.createDonation(mockDonor.id, {
+        donationNeedId: sampleNeed.id,
+        quantity: 25,
+        photoUrl: 'https://openaid.demo/uploads/rice-box.jpg',
+        notes: 'Giao tại điểm tập kết quận Hải Châu',
+      });
+
+      expect(result.photoUrl).toBe('https://openaid.demo/uploads/rice-box.jpg');
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          photoUrl: 'https://openaid.demo/uploads/rice-box.jpg',
+        }),
+        expect.anything(),
+      );
+      expect(transparencyRepo.append).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          details: expect.objectContaining({
+            photoUrl: 'https://openaid.demo/uploads/rice-box.jpg',
+            notes: 'Giao tại điểm tập kết quận Hải Châu',
+          }),
+        }),
+      );
+    });
+
     it('throws NotFoundException if donationNeed does not exist', async () => {
       repository.findNeedWithEvent.mockResolvedValue(null);
 
