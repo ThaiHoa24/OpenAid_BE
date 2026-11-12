@@ -12,6 +12,9 @@ import {
   EventQueryDto,
   UpdateEventDto,
   DonationNeedInputDto,
+  UpdateDonationNeedDto,
+  VolunteerRoleInputDto,
+  UpdateVolunteerRoleDto,
 } from './dto/index.js';
 import { EventStatus, OrgStatus, SystemRole } from '../../common/enums/index.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
@@ -134,16 +137,23 @@ export class EventsService {
   }
 
   /**
-   * US-10: Khám phá & Tìm kiếm Chiến dịch công khai
+   * US-10: Khám phá & Tìm kiếm Chiến dịch công khai (hoặc lọc theo organizationId cho Organizer)
    */
   async getAllEvents(query: EventQueryDto) {
-    const where: Prisma.EventWhereInput = {
+    const where: Prisma.EventWhereInput = {};
+
+    if (query.organizationId) {
+      where.organizationId = query.organizationId;
+      if (query.status) {
+        where.status = query.status;
+      }
+    } else {
       // Mặc định công khai chỉ tìm sự kiện PUBLISHED (hoặc CLOSED nếu client yêu cầu rõ)
-      status:
+      where.status =
         query.status && query.status !== EventStatus.DRAFT
           ? query.status
-          : EventStatus.PUBLISHED,
-    };
+          : EventStatus.PUBLISHED;
+    }
 
     // Tìm kiếm từ khóa theo title, description, hoặc location
     if (query.search?.trim()) {
@@ -376,9 +386,15 @@ export class EventsService {
       event.status === EventStatus.CLOSED ||
       event.status === EventStatus.CANCELLED
     ) {
-      throw new BadRequestException(
-        'Cannot change status of a closed or cancelled event',
-      );
+      // Platform Admin được phép kiểm duyệt / mở lại (reopen) sự kiện CLOSED -> PUBLISHED hoặc CANCELLED
+      if (
+        actor.systemRole !== SystemRole.ADMIN ||
+        event.status === EventStatus.CANCELLED
+      ) {
+        throw new BadRequestException(
+          'Cannot change status of a closed or cancelled event',
+        );
+      }
     }
 
     if (event.status === EventStatus.DRAFT) {
@@ -618,5 +634,247 @@ export class EventsService {
 
     await this.repository.deleteDonationNeed(needId);
     return { id: needId, message: 'Donation need removed successfully' };
+  }
+
+  /**
+   * EVT-SUB: Cập nhật độc lập 1 nhu cầu quyên góp (DonationNeed)
+   */
+  async updateDonationNeed(
+    actor: AuthenticatedUser,
+    needId: string,
+    dto: UpdateDonationNeedDto,
+    expectedEventId?: string,
+  ) {
+    const need = await this.repository.findDonationNeedById(needId);
+    if (!need || (expectedEventId && need.eventId !== expectedEventId)) {
+      throw new NotFoundException('Donation need not found');
+    }
+
+    if (actor.systemRole !== SystemRole.ADMIN) {
+      await this.organizationAccessService.requireOrganizer(
+        actor.id,
+        need.event.organizationId,
+      );
+    }
+
+    if (
+      need.event.status === EventStatus.CLOSED ||
+      need.event.status === EventStatus.CANCELLED
+    ) {
+      throw new BadRequestException(
+        'Cannot update donation need of a closed or cancelled event',
+      );
+    }
+
+    const nextItemTypeId = dto.itemTypeId ?? need.itemTypeId;
+    const nextUnitId = dto.unitId ?? need.unitId;
+
+    if (
+      nextItemTypeId !== need.itemTypeId ||
+      nextUnitId !== need.unitId
+    ) {
+      const donationCount = await this.prisma.donation.count({
+        where: { donationNeedId: needId },
+      });
+      if (donationCount > 0) {
+        throw new BadRequestException(
+          'Cannot change itemType or unit of a donation need that already has donations',
+        );
+      }
+
+      const [validItems, validUnits] = await Promise.all([
+        this.repository.validateItemTypes([nextItemTypeId]),
+        this.repository.validateUnits([nextUnitId]),
+      ]);
+      if (validItems.length === 0) {
+        throw new BadRequestException('Item type is invalid or inactive');
+      }
+      if (validUnits.length === 0) {
+        throw new BadRequestException('Unit is invalid or inactive');
+      }
+
+      const existingNeeds = await this.repository.findDonationNeedsByEventId(
+        need.eventId,
+      );
+      const isDuplicate = existingNeeds.some(
+        (n) =>
+          n.id !== needId &&
+          n.itemTypeId === nextItemTypeId &&
+          n.unitId === nextUnitId,
+      );
+      if (isDuplicate) {
+        throw new BadRequestException(
+          'This item type and unit combination already exists for this event',
+        );
+      }
+    }
+
+    return this.repository.updateDonationNeed(needId, {
+      itemTypeId: dto.itemTypeId,
+      unitId: dto.unitId,
+      targetQuantity:
+        dto.targetQuantity !== undefined
+          ? new Prisma.Decimal(dto.targetQuantity)
+          : undefined,
+      notes: dto.notes !== undefined ? dto.notes?.trim() : undefined,
+    });
+  }
+
+  /**
+   * EVT-SUB: Xóa độc lập 1 nhu cầu quyên góp theo ID (DELETE /api/events/donation-needs/:id)
+   */
+  async removeDonationNeedById(actor: AuthenticatedUser, needId: string) {
+    const need = await this.repository.findDonationNeedById(needId);
+    if (!need) {
+      throw new NotFoundException('Donation need not found');
+    }
+    return this.removeDonationNeed(actor, need.eventId, needId);
+  }
+
+  /**
+   * EVT-SUB: Lấy danh sách vị trí tình nguyện viên (VolunteerRole) theo Event ID
+   */
+  async getVolunteerRoles(eventId: string) {
+    const event = await this.repository.findById(eventId);
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+    return this.repository.findVolunteerRolesByEventId(eventId);
+  }
+
+  /**
+   * EVT-SUB: Thêm độc lập 1 vị trí tình nguyện viên vào Event
+   */
+  async addVolunteerRole(
+    actor: AuthenticatedUser,
+    eventId: string,
+    dto: VolunteerRoleInputDto,
+  ) {
+    const event = await this.repository.findById(eventId);
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    if (actor.systemRole !== SystemRole.ADMIN) {
+      await this.organizationAccessService.requireOrganizer(
+        actor.id,
+        event.organizationId,
+      );
+    }
+
+    if (
+      event.status === EventStatus.CLOSED ||
+      event.status === EventStatus.CANCELLED
+    ) {
+      throw new BadRequestException(
+        'Cannot add volunteer roles to a closed or cancelled event',
+      );
+    }
+
+    const existingRoles =
+      await this.repository.findVolunteerRolesByEventId(eventId);
+    const normalizedName = dto.name.trim().toLowerCase();
+    if (
+      existingRoles.some((r) => r.name.trim().toLowerCase() === normalizedName)
+    ) {
+      throw new BadRequestException(
+        'Volunteer role name must be unique within an event',
+      );
+    }
+
+    return this.repository.createVolunteerRole({
+      eventId,
+      name: dto.name.trim(),
+      quantity: dto.quantity,
+      description: dto.description?.trim(),
+    });
+  }
+
+  /**
+   * EVT-SUB: Cập nhật độc lập 1 vị trí tình nguyện viên (PATCH /api/events/volunteer-roles/:id)
+   */
+  async updateVolunteerRole(
+    actor: AuthenticatedUser,
+    roleId: string,
+    dto: UpdateVolunteerRoleDto,
+    expectedEventId?: string,
+  ) {
+    const role = await this.repository.findVolunteerRoleById(roleId);
+    if (!role || (expectedEventId && role.eventId !== expectedEventId)) {
+      throw new NotFoundException('Volunteer role not found');
+    }
+
+    if (actor.systemRole !== SystemRole.ADMIN) {
+      await this.organizationAccessService.requireOrganizer(
+        actor.id,
+        role.event.organizationId,
+      );
+    }
+
+    if (
+      role.event.status === EventStatus.CLOSED ||
+      role.event.status === EventStatus.CANCELLED
+    ) {
+      throw new BadRequestException(
+        'Cannot update volunteer role of a closed or cancelled event',
+      );
+    }
+
+    if (dto.name !== undefined) {
+      const existingRoles = await this.repository.findVolunteerRolesByEventId(
+        role.eventId,
+      );
+      const normalizedName = dto.name.trim().toLowerCase();
+      if (
+        existingRoles.some(
+          (r) =>
+            r.id !== roleId && r.name.trim().toLowerCase() === normalizedName,
+        )
+      ) {
+        throw new BadRequestException(
+          'Volunteer role name must be unique within an event',
+        );
+      }
+    }
+
+    return this.repository.updateVolunteerRole(roleId, {
+      name: dto.name !== undefined ? dto.name.trim() : undefined,
+      quantity: dto.quantity,
+      description:
+        dto.description !== undefined ? dto.description?.trim() : undefined,
+    });
+  }
+
+  /**
+   * EVT-SUB: Xóa độc lập 1 vị trí tình nguyện viên (DELETE /api/events/volunteer-roles/:id)
+   */
+  async removeVolunteerRole(
+    actor: AuthenticatedUser,
+    roleId: string,
+    expectedEventId?: string,
+  ) {
+    const role = await this.repository.findVolunteerRoleById(roleId);
+    if (!role || (expectedEventId && role.eventId !== expectedEventId)) {
+      throw new NotFoundException('Volunteer role not found');
+    }
+
+    if (actor.systemRole !== SystemRole.ADMIN) {
+      await this.organizationAccessService.requireOrganizer(
+        actor.id,
+        role.event.organizationId,
+      );
+    }
+
+    const appCount = await this.prisma.volunteerApplication.count({
+      where: { volunteerRoleId: roleId },
+    });
+    if (appCount > 0) {
+      throw new BadRequestException(
+        'Cannot remove volunteer role that already has volunteer applications',
+      );
+    }
+
+    await this.repository.deleteVolunteerRole(roleId);
+    return { id: roleId, message: 'Volunteer role removed successfully' };
   }
 }

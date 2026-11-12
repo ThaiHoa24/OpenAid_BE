@@ -252,4 +252,85 @@ export class EventsRepository {
       where: { id },
     });
   }
+
+  async updateDonationNeed(
+    id: string,
+    data: Prisma.DonationNeedUncheckedUpdateInput,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? this.prisma;
+    return client.donationNeed.update({
+      where: { id },
+      data,
+      include: {
+        itemType: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            category: true,
+            isActive: true,
+          },
+        },
+        unit: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            isActive: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findVolunteerRolesByEventId(
+    eventId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? this.prisma;
+    return client.volunteerRole.findMany({
+      where: { eventId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async findVolunteerRoleById(id: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? this.prisma;
+    return client.volunteerRole.findUnique({
+      where: { id },
+      include: {
+        event: true,
+      },
+    });
+  }
+
+  async createVolunteerRole(
+    data: Prisma.VolunteerRoleUncheckedCreateInput,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? this.prisma;
+    return client.volunteerRole.create({
+      data,
+    });
+  }
+
+  async updateVolunteerRole(
+    id: string,
+    data: Prisma.VolunteerRoleUncheckedUpdateInput,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? this.prisma;
+    return client.volunteerRole.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async deleteVolunteerRole(id: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? this.prisma;
+    return client.volunteerRole.delete({
+      where: { id },
+    });
+  }
 }

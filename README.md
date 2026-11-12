@@ -228,10 +228,11 @@ Toàn bộ các endpoint dưới đây đã hoàn thiện logic nghiệp vụ, k
 | **Admin** | `PATCH` | `/api/admin/organizations/:id/review` | Bearer JWT + `ADMIN` | Phê duyệt hoặc từ chối tổ chức kèm ghi vết `TransparencyLog` (`ADM-02`) |
 | **Admin** | `GET` | `/api/admin/users` | Bearer JWT + `ADMIN` | Danh sách tất cả người dùng trong hệ thống (`ADM-03`) |
 | **Admin** | `PATCH` | `/api/admin/users/:id/active` | Bearer JWT + `ADMIN` | Khóa hoặc mở khóa tài khoản người dùng (chặn tự khóa chính mình) (`ADM-04`) |
-| **Admin** | `GET` | `/api/admin/events` | Bearer JWT + `ADMIN` | Danh sách toàn bộ sự kiện ở mọi trạng thái kèm tổ chức và người tạo (`ADM-05`) |
+| **Admin** | `GET` | `/api/admin/events` | Bearer JWT + `ADMIN` | Danh sách toàn bộ sự kiện kèm tìm kiếm, lọc theo tổ chức và trạng thái (`ADM-05`) |
+| **Admin** | `PATCH` | `/api/admin/events/:id/status` | Bearer JWT + `ADMIN` | Kiểm duyệt sự kiện cấp hệ thống (`SUSPENDED` / `CLOSED`, `PUBLISHED`, `CANCELLED`) (`ADM-06`) |
 | **Events** | `GET` | `/api/events/catalogs/item-types` | Công khai | Lấy danh mục các loại hàng hóa cứu trợ đang hoạt động (`ItemType`) |
 | **Events** | `GET` | `/api/events/catalogs/units` | Công khai | Lấy danh mục các đơn vị đo lường đang hoạt động (`Unit`) |
-| **Events** | `GET` | `/api/events` | Công khai | Khám phá, lọc danh sách chiến dịch theo địa bàn, trạng thái, từ khóa |
+| **Events** | `GET` | `/api/events` | Công khai | Khám phá, lọc danh sách chiến dịch theo địa bàn, tổ chức, trạng thái, từ khóa |
 | **Events** | `GET` | `/api/events/:id` | Công khai | Xem chi tiết thông tin chiến dịch, vị trí TNV và nhu cầu hàng hóa |
 | **Events** | `POST` | `/api/events` | Bearer JWT + `ORGANIZER` | Tạo chiến dịch mới ở trạng thái `DRAFT` kèm roles và donation needs |
 | **Events** | `PATCH` | `/api/events/:id` | Bearer JWT + `ORGANIZER` | Cập nhật thông tin chiến dịch (khi chiến dịch ở trạng thái `DRAFT`) |
@@ -239,7 +240,12 @@ Toàn bộ các endpoint dưới đây đã hoàn thiện logic nghiệp vụ, k
 | **Events** | `DELETE` | `/api/events/:id` | Bearer JWT + `ORGANIZER` | Xóa chiến dịch nháp `DRAFT` (chỉ khi chưa phát sinh dữ liệu liên kết) |
 | **Events** | `GET` | `/api/events/:id/donation-needs` | Công khai | Tra cứu danh sách nhu cầu hiện vật của một chiến dịch cụ thể |
 | **Events** | `POST` | `/api/events/:id/donation-needs` | Bearer JWT + `ORGANIZER` | Khai báo bổ sung nhu cầu hiện vật vào chiến dịch `DRAFT` |
-| **Events** | `DELETE` | `/api/events/:id/donation-needs/:needId` | Bearer JWT + `ORGANIZER` | Xóa nhu cầu hiện vật khỏi chiến dịch `DRAFT` |
+| **Events** | `PATCH` | `/api/events/donation-needs/:id` | Bearer JWT + `ORGANIZER` | Cập nhật độc lập 1 nhu cầu quyên góp (`EVT-SUB`) |
+| **Events** | `DELETE` | `/api/events/donation-needs/:id` | Bearer JWT + `ORGANIZER` | Xóa độc lập 1 nhu cầu quyên góp khỏi chiến dịch (`EVT-SUB`) |
+| **Events** | `GET` | `/api/events/:id/volunteer-roles` | Công khai | Lấy danh sách vị trí tuyển tình nguyện viên của sự kiện (`EVT-SUB`) |
+| **Events** | `POST` | `/api/events/:id/volunteer-roles` | Bearer JWT + `ORGANIZER` | Thêm mới 1 vị trí tình nguyện viên vào sự kiện (`EVT-SUB`) |
+| **Events** | `PATCH` | `/api/events/volunteer-roles/:id` | Bearer JWT + `ORGANIZER` | Cập nhật độc lập 1 vị trí tình nguyện viên (`EVT-SUB`) |
+| **Events** | `DELETE` | `/api/events/volunteer-roles/:id` | Bearer JWT + `ORGANIZER` | Xóa độc lập 1 vị trí tình nguyện viên (`EVT-SUB`) |
 | **Storage** | `POST` | `/api/uploads` | Bearer JWT | Tải lên tệp ảnh (`JPEG`/`PNG`/`WebP`, <= 5MB) trả về URL và metadata |
 | **Storage** | `GET` | `/api/uploads/:key` | Công khai | Phục vụ xem/tải trực tiếp file ảnh đã tải lên |
 | **Volunteers** | `POST` | `/api/volunteers/apply` | Bearer JWT | Nộp đơn ứng tuyển tình nguyện viên vào sự kiện (`VOL-01`) |
@@ -248,7 +254,7 @@ Toàn bộ các endpoint dưới đây đã hoàn thiện logic nghiệp vụ, k
 | **Volunteers** | `PATCH` | `/api/volunteers/:id/review` | Bearer JWT + `ORGANIZER` | Xét duyệt (`APPROVED`/`REJECTED`) đơn ứng tuyển tình nguyện viên (`VOL-04`) |
 | **Volunteers** | `POST` | `/api/volunteers/:id/check-in` | Bearer JWT + `ORGANIZER` | Xác nhận Check-in ca trực tình nguyện viên (`VOL-05`) |
 | **Volunteers** | `POST` | `/api/volunteers/:id/check-out` | Bearer JWT + `ORGANIZER` | Xác nhận Check-out ca trực tình nguyện viên (`VOL-06`) |
-| **Donations** | `POST` | `/api/donations` | Bearer JWT | Đăng ký quyên góp hiện vật mới (`{ donationNeedId, quantity }`) và sinh Tracking ID (`FR12`) |
+| **Donations** | `POST` | `/api/donations` | Bearer JWT | Đăng ký quyên góp hiện vật mới (`{ donationNeedId, quantity, photoUrl?, notes? }`) và sinh Tracking ID (`FR12`, `DON-IMG`) |
 | **Donations** | `GET` | `/api/donations/my` | Bearer JWT | Xem lịch sử các khoản quyên góp của bản thân (`FR13`) |
 | **Donations** | `GET` | `/api/donations/event/:eventId` | Bearer JWT + `ORGANIZER` | Danh sách các khoản quyên góp theo chiến dịch (`FR14`) |
 | **Donations** | `PATCH` | `/api/donations/:id/receipt` | Bearer JWT + `ORGANIZER` | Tiếp nhận hiện vật vào kho (`RECEIVED`) hoặc từ chối (`REJECTED`) (`FR14`, `FR15`) |
@@ -271,6 +277,7 @@ Toàn bộ các endpoint dưới đây đã hoàn thiện logic nghiệp vụ, k
 | **Evidence** | `GET` | `/api/evidence/trip/:tripId` | Bearer JWT | Xem danh sách ảnh/biên bản bằng chứng của một chuyến xe |
 | **Evidence** | `PATCH` | `/api/evidence/:id/review` | Bearer JWT + `ORGANIZER` | Phê duyệt (`APPROVED`) hoặc từ chối (`REJECTED`) bằng chứng hình ảnh (`OA-S5-08`) |
 | **Dashboard** | `GET` | `/api/dashboard/events/:eventId` | Bearer JWT + `ORGANIZER` | Thống kê số liệu tổng quan của sự kiện (Donations, Batches, Trips, Volunteers, Inventory) (`OA-S4-04`) |
+| **Reports** | `GET` | `/api/reports/events/:id/export` | Bearer JWT + `ORGANIZER` | Xuất báo cáo tổng kết nghiệm thu chiến dịch (`CSV` / `Excel` / `PDF` / `JSON`) (`REP-01`) |
 | **Transparency** | `GET` | `/api/transparency/track/:trackingId` | Công khai | Tra cứu công khai hành trình đóng góp và minh bạch bằng Tracking ID (`FR21`, `FR22`) |
 | **Transparency** | `GET` | `/api/transparency/logs` | Bearer JWT + `ADMIN` | Tra cứu danh sách nhật ký kiểm toán toàn hệ thống (hỗ trợ phân trang) |
 | **Transparency** | `GET` | `/api/transparency/timeline` | Công khai / Bearer JWT | Xem dòng thời gian minh bạch theo từng thực thể (`entityType`, `entityId`) |
@@ -312,7 +319,7 @@ Mọi lỗi nghiệp vụ hoặc phân quyền đều trả về cấu trúc th�
 | `npm run lint` | Kiểm tra chất lượng và quy chuẩn code bằng Oxlint |
 | `npm run format` | Định dạng code tự động bằng Prettier |
 | `npm run build` | Tự động chạy `prisma generate` và biên dịch NestJS sang `dist/` |
-| `npm test` | Chạy bộ Unit Tests bằng Vitest (`114/114 passed`) |
+| `npm test` | Chạy bộ Unit Tests cho toàn bộ 16 module bằng Vitest (`141/141 passed`) |
 | `npm run test:e2e` | Tự động build và chạy toàn bộ kịch bản E2E Integration & Smoke Tests (`30/30 passed`) |
 | `npm run db:check` | Kiểm tra kết nối và độ tương thích giữa DB và Prisma |
 

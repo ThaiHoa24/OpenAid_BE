@@ -21,6 +21,20 @@ export class CreateDonationDto {
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
   quantity!: number;
+
+  @ApiPropertyOptional({
+    description: 'DON-IMG: Optional URL of the donation package photo uploaded by the donor.',
+  })
+  @IsOptional()
+  @IsString()
+  photoUrl?: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional note or message from the donor.',
+  })
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class ReceiveDonationDto {
