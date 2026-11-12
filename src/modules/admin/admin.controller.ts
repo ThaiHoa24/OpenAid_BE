@@ -101,4 +101,21 @@ export class AdminController {
   ) {
     return this.service.toggleUserActive(actor, id, dto);
   }
+
+  @Get('events')
+  @ApiOperation({
+    summary:
+      'ADM-05: Admin xem danh sách tất cả sự kiện (mọi trạng thái) kèm phân trang',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách toàn bộ sự kiện kèm thông tin tổ chức và người tạo',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Chỉ System Admin mới có quyền truy cập',
+  })
+  events(@Query() query: PaginationDto) {
+    return this.service.getAllEvents(query);
+  }
 }

@@ -1,13 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import { PaginationDto } from '../../common/dto/pagination.dto.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import { ReviewOrganizationDto, SetUserActiveDto } from './dto/index.js';
-import { OrgStatus } from '../../common/enums/index.js';
+import {
+  OrgStatus,
+  TransparencyEntityType,
+} from '../../common/enums/index.js';
+import { TransparencyRepository } from '../transparency/transparency.repository.js';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly transparencyRepo: TransparencyRepository,
+  ) {}
 
   async getPendingOrganizations(query: PaginationDto) {
     return this.prisma.organization.findMany({
@@ -28,13 +39,31 @@ export class AdminService {
       throw new NotFoundException('Organization not found');
     }
 
-    return this.prisma.organization.update({
-      where: { id },
-      data: {
-        status: dto.status,
-        reviewedById: actor.id,
-        reviewedAt: new Date(),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.organization.update({
+        where: { id },
+        data: {
+          status: dto.status,
+          reviewedById: actor.id,
+          reviewedAt: new Date(),
+        },
+      });
+
+      await this.transparencyRepo.append(tx, {
+        actorId: actor.id,
+        action: 'ORGANIZATION_REVIEWED',
+        entityType: TransparencyEntityType.ORGANIZATION,
+        entityId: id,
+        oldStatus: org.status,
+        newStatus: dto.status,
+        details: {
+          organizationName: org.name,
+          organizationCode: org.code,
+        },
+        isPublic: true,
+      });
+
+      return updated;
     });
   }
 
@@ -57,10 +86,16 @@ export class AdminService {
   }
 
   async toggleUserActive(
-    _actor: AuthenticatedUser,
+    actor: AuthenticatedUser,
     id: string,
     dto: SetUserActiveDto,
   ) {
+    if (actor.id === id && !dto.isActive) {
+      throw new BadRequestException(
+        'Admin không được tự khóa tài khoản của chính mình',
+      );
+    }
+
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -75,6 +110,53 @@ export class AdminService {
         fullName: true,
         isActive: true,
         systemRole: true,
+      },
+    });
+  }
+
+  async getAllEvents(query: PaginationDto) {
+    return this.prisma.event.findMany({
+      skip: query.skip,
+      take: query.take,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            description: true,
+            email: true,
+            phoneNumber: true,
+            address: true,
+            status: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            phoneNumber: true,
+            avatarUrl: true,
+            systemRole: true,
+            isActive: true,
+          },
+        },
+        volunteerRoles: true,
+        donationNeeds: {
+          include: {
+            itemType: true,
+            unit: true,
+          },
+        },
+        _count: {
+          select: {
+            donations: true,
+            volunteerApplications: true,
+            trips: true,
+          },
+        },
       },
     });
   }
