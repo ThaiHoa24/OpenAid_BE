@@ -10,7 +10,12 @@ import { CurrentUser, Roles } from '../../common/decorators/index.js';
 import { SystemRole } from '../../common/enums/index.js';
 import { PaginationDto } from '../../common/dto/pagination.dto.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
-import { ReviewOrganizationDto, SetUserActiveDto } from './dto/index.js';
+import {
+  AdminEventQueryDto,
+  AdminModerateEventDto,
+  ReviewOrganizationDto,
+  SetUserActiveDto,
+} from './dto/index.js';
 
 @ApiTags('Admin')
 @ApiBearerAuth('JWT-auth')
@@ -100,5 +105,49 @@ export class AdminController {
     @Body() dto: SetUserActiveDto,
   ) {
     return this.service.toggleUserActive(actor, id, dto);
+  }
+
+  @Get('events')
+  @ApiOperation({
+    summary:
+      'ADM-05: Admin xem danh sách toàn bộ sự kiện cứu trợ trên toàn hệ thống kèm phân trang và bộ lọc',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách sự kiện hệ thống kèm metadata phân trang',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Chỉ System Admin mới có quyền truy cập',
+  })
+  events(@Query() query: AdminEventQueryDto) {
+    return this.service.getAdminEvents(query);
+  }
+
+  @Patch('events/:id/status')
+  @ApiOperation({
+    summary:
+      'ADM-06: Admin can thiệp kiểm duyệt sự kiện sang đình chỉ (SUSPENDED) hoặc cưỡng chế hủy (CANCELLED)',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Trạng thái sự kiện đã được cập nhật và ghi nhận audit log minh bạch',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Trạng thái kiểm duyệt không hợp lệ',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Chỉ System Admin mới có quyền truy cập',
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy sự kiện' })
+  moderateEventStatus(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: AdminModerateEventDto,
+  ) {
+    return this.service.moderateEventStatus(actor, id, dto);
   }
 }

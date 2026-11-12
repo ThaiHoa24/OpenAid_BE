@@ -19,6 +19,7 @@ import { StorageModule } from './modules/storage/storage.module.js';
 import { TransparencyModule } from './modules/transparency/transparency.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
+import { ReportsModule } from './modules/reports/reports.module.js';
 
 import { HealthModule } from './modules/health/health.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
@@ -48,6 +49,7 @@ import { MailModule } from './modules/mail/mail.module.js';
     TransparencyModule,
     DashboardModule,
     AdminModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}

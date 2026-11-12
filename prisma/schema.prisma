@@ -92,6 +92,7 @@ model Event {
   startDate             DateTime               @db.Timestamptz(6)
   endDate               DateTime?              @db.Timestamptz(6)
   status                EventStatus            @default(DRAFT)
+  moderationReason      String?
   createdAt             DateTime               @default(now()) @db.Timestamptz(6)
   updatedAt             DateTime               @default(now()) @db.Timestamptz(6)
   batches               Batch[]
@@ -464,8 +465,10 @@ enum OrgStatus {
 enum EventStatus {
   DRAFT
   PUBLISHED
+  COMPLETED
   CLOSED
   CANCELLED
+  SUSPENDED
 }
 
 enum VolunteerApplicationStatus {
