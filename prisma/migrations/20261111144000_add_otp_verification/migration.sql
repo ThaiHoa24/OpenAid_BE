@@ -16,3 +16,4 @@ CREATE TABLE "otp_verifications" (
 
 -- CreateIndex
 CREATE INDEX "idx_otp_verifications_email_type" ON "otp_verifications"("email", "type");
+

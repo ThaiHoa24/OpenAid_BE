@@ -1,6 +1,6 @@
 # OpenAid Backend
 
-Backend cho **OpenAid – Transparent In-Kind Donation & Volunteer Coordination System** (Hệ thống điều phối tình nguyện viên và quyên góp hiện vật minh bạch), xây dựng theo kiến trúc **Modular Monolith** với NestJS, Prisma và PostgreSQL. Frontend Next.js được phát triển ở repository riêng.
+Backend cho **OpenAid – Transparent In-Kind Donation & Volunteer Coordination System** (Hệ thống điều phối tình nguyện viên và quyên góp hiện vật minh bạch), xây dựng theo kiến trúc **Modular Monolith** với NestJS 12, Prisma 6 và PostgreSQL. Tích hợp hoàn chỉnh với Frontend Next.js (`OpenAid_FE`).
 
 > **Đề tài:** Đồ án Tốt nghiệp Capstone 1 (CMU-SE 450) – Viện Đào tạo Quốc tế, Đại học Duy Tân
 >
@@ -17,30 +17,30 @@ Backend cho **OpenAid – Transparent In-Kind Donation & Volunteer Coordination 
 
 ## Phạm vi và trạng thái triển khai
 
-OpenAid hướng tới ba nhóm nghiệp vụ chính: quản lý chiến dịch và tình nguyện viên; tiếp nhận hiện vật, quản lý tồn kho và đóng kiện (Batch); điều phối chuyến phân phối, lưu bằng chứng và tra cứu hành trình đóng góp bằng Tracking ID.
+OpenAid giải quyết trọn vẹn ba nhóm nghiệp vụ cốt lõi: quản lý chiến dịch và tình nguyện viên; tiếp nhận hiện vật, quản lý tồn kho bảo toàn và đóng kiện (Batch); điều phối chuyến xe phân phối, đối soát sau chuyến đi, lưu bằng chứng thực địa và tra cứu hành trình đóng góp bằng Tracking ID.
 
 ### Trạng thái tính năng hiện tại
 
 | Thành phần | Trạng thái triển khai | Chi tiết |
 | --- | :---: | --- |
-| **Xác thực (Authentication)** | **Hoàn thành** | Đăng ký, đăng nhập, chuẩn hóa email không phân biệt hoa/thường, mã hóa mật khẩu với `bcrypt`, cấp phát và xác thực JWT Bearer token. |
-| **Hồ sơ & Context User** | **Hoàn thành** | Xem/cập nhật hồ sơ cá nhân (`/api/users/profile`), tra cứu danh sách tổ chức và vai trò đang tham gia (`/api/users/memberships`). |
-| **Phân quyền 2 tầng (RBAC)** | **Hoàn thành** | <ul><li>**Cấp hệ thống:** `SystemRole` (`USER`, `ADMIN`) bảo vệ bởi `RolesGuard` toàn cục. Đọc role trực tiếp từ database, chống giả mạo token.</li><li>**Cấp tổ chức:** `OrganizationRole` (`MEMBER`, `ORGANIZER`) bảo vệ bởi `OrganizationAccessService`. Chỉ `ORGANIZER` của tổ chức mới được chỉnh sửa hoặc quản lý thành viên.</li></ul> |
+| **Xác thực & OTP Email (Authentication & Mail)** | **Hoàn thành** | Đăng ký trực tiếp hoặc xác thực OTP qua email (`Nodemailer` SMTP), quên mật khẩu & đặt lại mật khẩu bằng OTP, đăng nhập chuẩn hóa email, mã hóa mật khẩu với `bcrypt`, cấp phát và xác thực JWT Bearer token. |
+| **Hồ sơ & Context User** | **Hoàn thành** | Xem/cập nhật hồ sơ cá nhân (`/api/users/profile`: `fullName`, `phoneNumber`, `avatarUrl`), tra cứu danh sách tổ chức và vai trò đang tham gia (`/api/users/memberships`). |
+| **Phân quyền 2 tầng (RBAC)** | **Hoàn thành** | <ul><li>**Cấp hệ thống:** `SystemRole` (`USER`, `ADMIN`) bảo vệ bởi `RolesGuard` toàn cục. Đọc role trực tiếp từ database, chống giả mạo token.</li><li>**Cấp tổ chức:** `OrganizationRole` (`MEMBER`, `ORGANIZER`) bảo vệ bởi `OrganizationAccessService`. Chỉ `ORGANIZER` của tổ chức mới được chỉnh sửa hoặc quản lý tài nguyên thuộc tổ chức.</li></ul> |
 | **Quản lý Tổ chức (Organizations)** | **Hoàn thành** | Xem danh sách/chi tiết tổ chức (công khai); Tạo tổ chức kèm tự động gán quyền `ORGANIZER` cho người tạo trong transaction; Cập nhật thông tin và thêm thành viên có kiểm tra quyền `ORGANIZER`. |
-| **Quản trị hệ thống (Admin Console)** | **Hoàn thành** | Danh sách tổ chức chờ duyệt, phê duyệt/từ chối tổ chức, xem danh sách người dùng, bật/tắt trạng thái hoạt động tài khoản. Khóa nghiêm ngặt bởi `@Roles(SystemRole.ADMIN)`. |
+| **Quản trị hệ thống (Admin Console)** | **Hoàn thành** | Danh sách tổ chức chờ duyệt (`ADM-01`), phê duyệt/từ chối tổ chức kèm tự động ghi `TransparencyLog` trong transaction (`ADM-02`), xem danh sách người dùng (`ADM-03`), khóa/mở khóa tài khoản có chặn Admin tự khóa chính mình (`ADM-04`), xem toàn bộ chiến dịch ở mọi trạng thái (`ADM-05`). |
 | **Chiến dịch & Vòng đời Sự kiện (Events Lifecycle)** | **Hoàn thành** | Quản lý vòng đời chiến dịch (`DRAFT` → `PUBLISHED` → `CLOSED`/`CANCELLED`), cấu hình vị trí TNV (`VolunteerRole`), lọc và tìm kiếm sự kiện công khai, xóa nháp an toàn, tự động ghi vết Transparency Audit Log khi chuyển trạng thái. |
-| **Nhu cầu Hiện vật & Danh mục (Donation Needs & Catalogs)** | **Hoàn thành** | Tra cứu danh mục loại hàng chuẩn (`ItemType`) và đơn vị tính (`Unit`); Khai báo, thêm, xóa và truy vấn nhu cầu hiện vật (`DonationNeed`) theo chiến dịch; Thuật toán sinh Tracking ID ngẫu nhiên không tuần tự. |
+| **Nhu cầu Hiện vật & Danh mục (Donation Needs & Catalogs)** | **Hoàn thành** | Tra cứu danh mục loại hàng chuẩn (`ItemType`) và đơn vị tính (`Unit`); Khai báo, thêm, xóa và truy vấn nhu cầu hiện vật (`DonationNeed`) theo chiến dịch; Thuật toán sinh Tracking ID ngẫu nhiên không tuần tự (`TRK-...`). |
 | **Nền tảng Lưu trữ Tệp Dùng Chung (Shared Upload Foundation)** | **Hoàn thành** | Upload file dùng chung (`/api/uploads`), kiểm tra dung lượng tối đa 5MB, lọc định dạng nghiêm ngặt (`JPEG`, `PNG`, `WebP`), sinh mã lưu trữ ngẫu nhiên an toàn, phục vụ stream file tĩnh có cache control. |
-| **Nền tảng Ghi vết Minh bạch (Shared Transparency Log Foundation)** | **Hoàn thành** | Ghi log minh bạch trong cùng transaction DB (`TransparencyRepository`), tra cứu nhật ký kiểm toán cho Admin (`/api/transparency/logs`), truy xuất dòng thời gian minh bạch theo thực thể (`/api/transparency/timeline`). |
-| **Hạ tầng HTTP & Kiến trúc** | **Hoàn thành** | Modular Monolith (16 modules), validation pipe toàn cục, Transform Interceptor chuẩn hóa response envelope, AllExceptionsFilter, Swagger UI, Liveness endpoint (`/api/health/live`). |
-| **Cơ sở dữ liệu** | **Hoàn thành** | PostgreSQL `openaid` gồm 20 models, 12 enums, UUID `gen_random_uuid()`, `TIMESTAMPTZ`. Baseline migration (`20261028000000_init`) và Prisma schema đồng bộ 100%. |
-| **Tình nguyện viên (Volunteers)** | **Hoàn thành** | Đăng ký ứng tuyển TNV theo vị trí (VOL-01), xem đơn cá nhân (VOL-02), Organizer duyệt/từ chối đơn (VOL-03, VOL-04), xác nhận Check-in/Check-out ca trực kèm lưu vết thời gian và người xác nhận (VOL-05, VOL-06). |
-| **Quyên góp & Tiếp nhận (Donations)** | **Hoàn thành** | Đăng ký quyên góp hiện vật sinh Tracking ID (FR12), xem lịch sử quyên góp của bản thân (FR13), Organizer tiếp nhận hàng vào kho và tự động ghi vết minh bạch trong transaction DB (FR14, FR15, FR20), hủy quyên góp nháp. |
-| **Quản lý Tồn kho & Đóng kiện (Inventory & Batches)** | **Hoàn thành** | Quản lý số lượng tồn kho theo sự kiện và loại hàng; Đóng kiện hàng từ các khoản quyên góp (FR16), chuyển trạng thái kiện `PACKED` → `READY` chuẩn bị vận chuyển (FR17). |
-| **Chuyến xe Cứu trợ & Phân phối (Trips & Distribution)** | **Hoàn thành** | Lập chuyến xe gán kiện hàng `READY`, điều phối Trip Leader và TNV `APPROVED`, lộ trình các điểm phân phối (TRP-01 - TRP-03); Cập nhật trạng thái chuyến xe (`IN_TRANSIT`, `COMPLETED`); Ghi nhận số lượng hiện vật cấp phát thực tế tại điểm (FR18, FR19). |
-| **Bằng chứng & Minh bạch Công khai (Evidence & Transparency)** | **Hoàn thành** | Tải lên ảnh/biên bản bàn giao tại điểm phát, Organizer phê duyệt bằng chứng (FR19); Tra cứu hành trình minh bạch công khai qua Tracking ID không cần đăng nhập (FR21, FR22), xem timeline kiểm toán hệ thống. |
-| **Thống kê & Báo cáo (Dashboard)** | **Hoàn thành** | Thống kê số liệu tổng quan theo chiến dịch: tổng hiện vật quyên góp, tỷ lệ hoàn thành nhu cầu, số lượng tồn kho, tiến độ chuyến xe và số lượng TNV tham gia. |
-| **Kiểm thử tự động** | **Hoàn thành** | <ul><li>**Unit tests:** 110/110 tests passed (kiểm thử 10.000 Tracking ID duy nhất 0% collision, StorageService, TransparencyService, EventsService, AuthService, VolunteersService, DonationsService, BatchesService, TripsService, DistributionService, CommonUtils).</li><li>**E2E Integration & Smoke tests:** 30/30 tests passed trong `test/auth.e2e-spec.ts` và `test/scaffold.e2e-spec.ts`.</li></ul> |
+| **Nền tảng Ghi vết Minh bạch (Shared Transparency Log Foundation)** | **Hoàn thành** | Ghi log minh bạch bất biến trong cùng transaction DB (`TransparencyRepository`), tra cứu nhật ký kiểm toán cho Admin (`/api/transparency/logs`), truy xuất dòng thời gian minh bạch theo thực thể (`/api/transparency/timeline`). |
+| **Hạ tầng HTTP & Kiến trúc** | **Hoàn thành** | Modular Monolith (17 modules), `ValidationPipe` toàn cục (`whitelist: true`, `forbidNonWhitelisted: true`), `TransformInterceptor` chuẩn hóa response envelope, `AllExceptionsFilter`, Swagger UI, Liveness endpoint (`/api/health/live`). |
+| **Cơ sở dữ liệu** | **Hoàn thành** | PostgreSQL `openaid` với đầy đủ models, enums, UUID `gen_random_uuid()`, `TIMESTAMPTZ`. Migrations và Prisma schema đồng bộ 100%. |
+| **Tình nguyện viên (Volunteers)** | **Hoàn thành** | Đăng ký ứng tuyển TNV theo vị trí kèm ghi chú `notes` (`VOL-01`), xem đơn cá nhân (`VOL-02`), Organizer duyệt/từ chối đơn (`VOL-03`, `VOL-04`), xác nhận Check-in/Check-out ca trực kèm lưu vết thời gian và người xác nhận (`VOL-05`, `VOL-06`). |
+| **Quyên góp & Tiếp nhận (Donations)** | **Hoàn thành** | Đăng ký quyên góp hiện vật sinh Tracking ID (`FR12`), xem lịch sử quyên góp của bản thân (`FR13`), Organizer tiếp nhận hàng vào kho (`RECEIVED`) hoặc từ chối kèm `rejectionReason` (`REJECTED`) và tự động cập nhật tồn kho + ghi vết minh bạch trong transaction DB (`FR14`, `FR15`, `FR20`), hủy quyên góp khi còn `PENDING`. |
+| **Quản lý Tồn kho & Đóng kiện (Inventory & Batches)** | **Hoàn thành** | Quản lý số lượng tồn kho bảo toàn (`Available`, `Reserved`, `Distributed`, `Lost`) theo tổ chức và sự kiện; Đóng kiện hàng từ các khoản quyên góp đã nhận (`BAT-01`), chuyển trạng thái kiện sang `READY` (`BAT-04`), đối soát lô hàng sau chuyến đi (`BAT-05` — hoàn kho `returnedQuantity` và ghi nhận `lostQuantity`). |
+| **Chuyến xe Cứu trợ & Phân phối (Trips & Distribution)** | **Hoàn thành** | Lập chuyến xe gán kiện hàng `READY`, điều phối Trip Leader và TNV `APPROVED`, lộ trình các điểm phân phối (`TRP-01` – `TRP-03`); Cập nhật trạng thái chuyến xe (`SCHEDULED` → `PREPARING` → `IN_TRANSIT` → `COMPLETED` / `CANCELLED`); Cập nhật trạng thái từng điểm phát (`DIS-04`) và ghi nhận số lượng hiện vật cấp phát thực tế theo `tripBatchId` (`DIS-01`). |
+| **Bằng chứng & Minh bạch Công khai (Evidence & Transparency)** | **Hoàn thành** | Tải lên ảnh/biên bản bàn giao tại điểm phát kèm xác nhận quyền riêng tư (`OA-S5-08`), Organizer phê duyệt hoặc từ chối bằng chứng (`APPROVED`/`REJECTED`); Tra cứu hành trình minh bạch công khai qua Tracking ID không cần đăng nhập (`FR21`, `FR22`). |
+| **Thống kê & Báo cáo (Dashboard)** | **Hoàn thành** | Thống kê số liệu tổng quan theo chiến dịch (`/api/dashboard/events/:eventId`): tổng hiện vật quyên góp, lô hàng, tiến độ chuyến xe, số lượng TNV và tổng hợp tồn kho. |
+| **Kiểm thử tự động** | **Hoàn thành** | <ul><li>**Unit tests:** 114/114 tests passed trên 11 test suites (`StorageService`, `TransparencyService`, `EventsService`, `AuthService`, `VolunteersService`, `DonationsService`, `BatchesService`, `TripsService`, `DistributionService`, `DashboardService`, `CommonUtils`).</li><li>**E2E Integration & Smoke tests:** 30/30 tests passed trong `test/auth.e2e-spec.ts` và `test/scaffold.e2e-spec.ts`.</li></ul> |
 
 ---
 
@@ -51,11 +51,11 @@ Hệ thống tuân thủ nghiêm ngặt nguyên tắc **RBAC 2 tầng** được
 ```text
 1. SYSTEM-LEVEL ROLE (Toàn hệ thống - Lưu tại User.systemRole)
    ├── USER  : Người dùng thông thường, có thể quyên góp, ứng tuyển tình nguyện viên và tạo tổ chức.
-   └── ADMIN : Quản trị viên nền tảng, duyệt tổ chức, quản lý tài khoản, moderation hệ thống.
+   └── ADMIN : Quản trị viên nền tảng, duyệt tổ chức, quản lý tài khoản, giám sát chiến dịch toàn hệ thống.
 
 2. ORGANIZATION-LEVEL ROLE (Theo phạm vi tổ chức - Lưu tại OrganizationMember.role)
    ├── MEMBER    : Thành viên của tổ chức, tham gia các hoạt động thông thường.
-   └── ORGANIZER : Trưởng ban tổ chức, có quyền quản lý thông tin tổ chức, duyệt chiến dịch, kho và chuyến xe.
+   └── ORGANIZER : Trưởng ban / Điều phối viên tổ chức, có quyền quản lý thông tin tổ chức, chiến dịch, kho, lô hàng và chuyến xe.
 
 * Lưu ý: "DONOR" và "VOLUNTEER" KHÔNG PHẢI là system role, mà là hành vi tham gia của USER trong từng sự kiện.
 ```
@@ -71,6 +71,7 @@ Hệ thống tuân thủ nghiêm ngặt nguyên tắc **RBAC 2 tầng** được
 | Framework | NestJS 12, Express |
 | Database / ORM | PostgreSQL, Prisma 6 (`@prisma/client`) |
 | Xác thực & Bảo mật | Passport JWT, bcrypt (hashing 10 rounds), `RolesGuard`, `OrganizationAccessService` |
+| Email / OTP | Nodemailer (SMTP Gmail / App Password) |
 | File Storage | Multer, Local disk storage (chính sách JPEG/PNG/WebP, max 5MB) |
 | Validation / Docs | `class-validator`, `class-transformer`, `@nestjs/swagger` |
 | Kiểm thử | Vitest 4, Supertest 7 |
@@ -92,36 +93,37 @@ OpenAid_BE/
 │   ├── SRS_OpenAid.md          # Đặc tả yêu cầu phần mềm chi tiết
 │   └── C1SE.102_ProjectProposal.docx # Đề cương đồ án Capstone 1
 ├── prisma/
-│   ├── migrations/             # Baseline migration (20261028000000_init)
-│   ├── schema.prisma           # 20 models, 12 enums, ràng buộc quan hệ
+│   ├── migrations/             # Lịch sử migrations PostgreSQL
+│   ├── schema.prisma           # Định nghĩa models, enums, ràng buộc quan hệ
 │   └── seed.mjs                # Script nạp dữ liệu nền tảng mẫu
 ├── scripts/check-db.mjs        # Script kiểm tra kết nối DB và tính khớp schema
 ├── src/
 │   ├── common/                 # Guards, decorators (@Roles, @Public, @CurrentUser), filters, interceptors
 │   ├── config/                 # Cấu hình môi trường và env validation
 │   ├── database/               # PrismaModule, PrismaService
-│   ├── modules/                # 16 module nghiệp vụ và hệ thống
-│   │   ├── auth/               # Đăng ký, đăng nhập, JWT strategy
+│   ├── modules/                # 17 module nghiệp vụ và hệ thống
+│   │   ├── auth/               # Đăng ký, OTP, quên mật khẩu, đăng nhập, JWT strategy
+│   │   ├── mail/               # Dịch vụ gửi email OTP xác thực tài khoản và khôi phục mật khẩu
 │   │   ├── users/              # Hồ sơ cá nhân, danh sách memberships
 │   │   ├── organizations/      # Quản lý tổ chức, thành viên, OrganizationAccessService
-│   │   ├── admin/              # Quản trị hệ thống, duyệt tổ chức, toggle user active
+│   │   ├── admin/              # Quản trị hệ thống: duyệt tổ chức, quản lý user, xem tất cả sự kiện
 │   │   ├── events/             # Quản lý chiến dịch, vai trò TNV, nhu cầu quyên góp, catalogs
-│   │   ├── volunteers/         # Ứng tuyển và điểm danh tình nguyện viên
-│   │   ├── donations/          # Đăng ký quyên góp và sinh Tracking ID
-│   │   ├── inventory/          # Quản lý kho theo chiến dịch, loại hàng và đơn vị
-│   │   ├── batches/            # Đóng kiện hàng từ các khoản quyên góp
+│   │   ├── volunteers/         # Ứng tuyển, xét duyệt và điểm danh tình nguyện viên
+│   │   ├── donations/          # Đăng ký quyên góp, tiếp nhận kho và sinh Tracking ID
+│   │   ├── inventory/          # Quản lý tồn kho bảo toàn theo tổ chức và chiến dịch
+│   │   ├── batches/            # Đóng kiện hàng từ các khoản quyên góp & đối soát sau chuyến đi
 │   │   ├── trips/              # Chuyến xe phân phối và điều phối viên
-│   │   ├── distribution/       # Điểm phân phối và xác nhận số lượng thực tế
-│   │   ├── evidence/           # Bằng chứng hình ảnh, xác nhận quyền riêng tư
+│   │   ├── distribution/       # Điểm phân phối và biên bản cấp phát thực tế
+│   │   ├── evidence/           # Bằng chứng hình ảnh, xác nhận quyền riêng tư & kiểm duyệt
 │   │   ├── storage/            # Quản lý lưu trữ tệp (Local Storage, kiểm duyệt MIME/size)
-│   │   ├── transparency/       # Tra cứu nhật ký kiểm toán, timeline minh bạch
-│   │   ├── dashboard/          # Thống kê số liệu chiến dịch
+│   │   ├── transparency/       # Tra cứu hành trình Tracking ID, nhật ký kiểm toán, timeline minh bạch
+│   │   ├── dashboard/          # Thống kê số liệu tổng quan chiến dịch
 │   │   └── health/             # Health check & Liveness endpoint
 │   ├── app.module.ts           # Root module
 │   ├── bootstrap.ts            # Cấu hình HTTP chung (CORS, Pipes, Interceptors, Swagger)
 │   └── main.ts                 # Bootstrap server
 ├── test/
-│   ├── auth.e2e-spec.ts        # 18 test cases E2E cho Auth & RBAC (Done verification)
+│   ├── auth.e2e-spec.ts        # 18 test cases E2E cho Auth & RBAC
 │   ├── scaffold.e2e-spec.ts    # 12 smoke tests HTTP contracts & Swagger
 │   └── postgres-compatibility.e2e-spec.ts # Test tương thích PostgreSQL riêng
 ├── compose.yaml               # Docker Compose: PostgreSQL + Backend
@@ -158,6 +160,11 @@ Cập nhật các thông số cần thiết trong file `.env`:
 | `JWT_SECRET` | `openaid_jwt_secret_key_caps1_2026` | Khóa bí mật dùng để ký và giải mã JWT token |
 | `JWT_EXPIRES_IN` | `7d` | Thời hạn hiệu lực của access token |
 | `FRONTEND_URL` | `http://localhost:3000` | Địa chỉ Frontend Next.js cho phép CORS |
+| `MAIL_HOST` | `smtp.gmail.com` | Máy chủ SMTP gửi email OTP |
+| `MAIL_PORT` | `587` | Cổng SMTP |
+| `MAIL_USER` | `your-email@gmail.com` | Tài khoản email gửi OTP |
+| `MAIL_PASS` | `your-16-char-app-password` | Mật khẩu ứng dụng (App Password) SMTP |
+| `MAIL_FROM` | `OpenAid Platform <your-email@gmail.com>` | Địa chỉ người gửi hiển thị trên email |
 
 ### 3. Cài đặt thư viện
 
@@ -199,15 +206,19 @@ npm run start:prod
 
 ## Danh mục API đã hoạt động hoàn chỉnh
 
-Các API đã hoàn thiện logic nghiệp vụ, bảo vệ bởi RBAC và sẵn sàng cho Frontend tích hợp:
+Toàn bộ các endpoint dưới đây đã hoàn thiện logic nghiệp vụ, kiểm tra dữ liệu đầu vào bằng DTO và bảo vệ bởi RBAC:
 
 | Nhóm | Method | Endpoint | Quyền truy cập | Chức năng |
 | --- | --- | --- | --- | --- |
-| **Auth** | `POST` | `/api/auth/register` | Công khai | Đăng ký tài khoản mới (mã hóa mật khẩu bằng bcrypt) |
+| **Auth** | `POST` | `/api/auth/send-register-otp` | Công khai | Gửi mã OTP xác thực email khi đăng ký tài khoản |
+| **Auth** | `POST` | `/api/auth/verify-register` | Công khai | Xác thực mã OTP và hoàn tất đăng ký tài khoản |
+| **Auth** | `POST` | `/api/auth/forgot-password` | Công khai | Gửi mã OTP khôi phục mật khẩu qua email |
+| **Auth** | `POST` | `/api/auth/reset-password` | Công khai | Đặt lại mật khẩu mới bằng mã OTP |
+| **Auth** | `POST` | `/api/auth/register` | Công khai | Đăng ký tài khoản mới trực tiếp (mã hóa mật khẩu bằng bcrypt) |
 | **Auth** | `POST` | `/api/auth/login` | Công khai | Đăng nhập và nhận Bearer JWT Access Token |
-| **Users** | `GET` | `/api/users/profile` | Bearer JWT | Xem thông tin hồ sơ của tài khoản đang đăng nhập |
-| **Users** | `PATCH` | `/api/users/profile` | Bearer JWT | Cập nhật hồ sơ (họ tên, số điện thoại, avatar) |
-| **Users** | `GET` | `/api/users/memberships` | Bearer JWT | Tra cứu các tổ chức mà tài khoản đang là MEMBER hoặc ORGANIZER |
+| **Users** | `GET` | `/api/users/profile` | Bearer JWT | Xem thông tin hồ sơ của tài khoản đang đăng nhập (`USR-01`) |
+| **Users** | `PATCH` | `/api/users/profile` | Bearer JWT | Cập nhật hồ sơ (`fullName`, `phoneNumber`, `avatarUrl`) (`USR-02`) |
+| **Users** | `GET` | `/api/users/memberships` | Bearer JWT | Tra cứu các tổ chức mà tài khoản đang là `MEMBER` hoặc `ORGANIZER` (`USR-03`) |
 | **Organizations** | `GET` | `/api/organizations` | Công khai | Lấy danh sách tổ chức thiện nguyện (hỗ trợ phân trang) |
 | **Organizations** | `GET` | `/api/organizations/:id` | Công khai | Xem chi tiết thông tin tổ chức |
 | **Organizations** | `POST` | `/api/organizations` | Bearer JWT | Tạo hồ sơ tổ chức mới (tự động gán quyền `ORGANIZER` cho người tạo) |
@@ -224,9 +235,9 @@ Các API đã hoàn thiện logic nghiệp vụ, bảo vệ bởi RBAC và sẵn
 | **Events** | `GET` | `/api/events` | Công khai | Khám phá, lọc danh sách chiến dịch theo địa bàn, tổ chức, trạng thái, từ khóa |
 | **Events** | `GET` | `/api/events/:id` | Công khai | Xem chi tiết thông tin chiến dịch, vị trí TNV và nhu cầu hàng hóa |
 | **Events** | `POST` | `/api/events` | Bearer JWT + `ORGANIZER` | Tạo chiến dịch mới ở trạng thái `DRAFT` kèm roles và donation needs |
-| **Events** | `PATCH` | `/api/events/:id` | Bearer JWT + `ORGANIZER` | Cập nhật thông tin chiến dịch (chỉ áp dụng khi chiến dịch là `DRAFT`) |
+| **Events** | `PATCH` | `/api/events/:id` | Bearer JWT + `ORGANIZER` | Cập nhật thông tin chiến dịch (khi chiến dịch ở trạng thái `DRAFT`) |
 | **Events** | `PATCH` | `/api/events/:id/status` | Bearer JWT + `ORGANIZER` | Đổi trạng thái (`PUBLISHED`, `CLOSED`, `CANCELLED`) và ghi audit log |
-| **Events** | `DELETE` | `/api/events/:id` | Bearer JWT + `ORGANIZER` | Xóa chiến dịch nháp `DRAFT` (chỉ khi chưa có đơn TNV, quyên góp, chuyến xe) |
+| **Events** | `DELETE` | `/api/events/:id` | Bearer JWT + `ORGANIZER` | Xóa chiến dịch nháp `DRAFT` (chỉ khi chưa phát sinh dữ liệu liên kết) |
 | **Events** | `GET` | `/api/events/:id/donation-needs` | Công khai | Tra cứu danh sách nhu cầu hiện vật của một chiến dịch cụ thể |
 | **Events** | `POST` | `/api/events/:id/donation-needs` | Bearer JWT + `ORGANIZER` | Khai báo bổ sung nhu cầu hiện vật vào chiến dịch `DRAFT` |
 | **Events** | `PATCH` | `/api/events/donation-needs/:id` | Bearer JWT + `ORGANIZER` | Cập nhật độc lập 1 nhu cầu quyên góp (`EVT-SUB`) |
@@ -283,7 +294,7 @@ Mọi response thành công đều được chuẩn hóa qua `TransformIntercept
   "success": true,
   "statusCode": 200,
   "data": { ... },
-  "timestamp": "2026-11-04T14:40:00.000Z"
+  "timestamp": "2026-11-12T04:00:00.000Z"
 }
 ```
 
@@ -293,7 +304,7 @@ Mọi lỗi nghiệp vụ hoặc phân quyền đều trả về cấu trúc th�
 {
   "success": false,
   "statusCode": 403,
-  "timestamp": "2026-11-04T14:40:00.000Z",
+  "timestamp": "2026-11-12T04:00:00.000Z",
   "path": "/api/admin/users",
   "message": "You do not have permission to access this resource"
 }
@@ -305,7 +316,7 @@ Mọi lỗi nghiệp vụ hoặc phân quyền đều trả về cấu trúc th�
 
 | Lệnh | Ý nghĩa |
 | --- | --- |
-| `npm run lint` | Kiểm tra chất lượng và quy chuẩn code bằng Oxlint (0 errors, 0 warnings) |
+| `npm run lint` | Kiểm tra chất lượng và quy chuẩn code bằng Oxlint |
 | `npm run format` | Định dạng code tự động bằng Prettier |
 | `npm run build` | Tự động chạy `prisma generate` và biên dịch NestJS sang `dist/` |
 | `npm test` | Chạy bộ Unit Tests cho toàn bộ 16 module bằng Vitest (`141/141 passed`) |

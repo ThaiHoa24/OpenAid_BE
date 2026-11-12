@@ -104,7 +104,9 @@ export class AdminService {
     dto: SetUserActiveDto,
   ) {
     if (actor.id === id && !dto.isActive) {
-      throw new BadRequestException('Admin cannot deactivate their own account');
+      throw new BadRequestException(
+        'Admin không được tự khóa tài khoản của chính mình',
+      );
     }
 
     const user = await this.prisma.user.findUnique({ where: { id } });
