@@ -166,6 +166,14 @@ export class EvidenceService {
     return this.prisma.evidence.findMany({
       where: { tripId },
       include: {
+        trip: {
+          select: {
+            id: true,
+            tripCode: true,
+            eventId: true,
+            vehicle: true,
+          },
+        },
         point: true,
         record: true,
         uploadedBy: {

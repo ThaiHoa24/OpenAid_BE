@@ -191,12 +191,13 @@ export class EventsService {
     const skip = query.skip ?? 0;
     const take = query.take ?? 20;
 
-    return this.repository.findMany({
+    const events = await this.repository.findMany({
       skip,
       take,
       where,
       orderBy: { startDate: 'asc' },
     });
+    return this.enrichEvents(events);
   }
 
   /**
@@ -207,7 +208,127 @@ export class EventsService {
     if (!event) {
       throw new NotFoundException('Event not found');
     }
-    return event;
+    const [enriched] = await this.enrichEvents([event]);
+    return enriched;
+  }
+
+  private async enrichEvents<T extends Record<string, any>>(
+    events: T[],
+  ): Promise<T[]> {
+    if (
+      events.length === 0 ||
+      typeof this.prisma?.volunteerApplication?.findMany !== 'function' ||
+      typeof this.prisma?.donation?.findMany !== 'function' ||
+      typeof this.prisma?.inventory?.findMany !== 'function'
+    ) {
+      return events;
+    }
+
+    const eventIds = events.map((e) => e.id).filter(Boolean);
+    if (eventIds.length === 0) return events;
+
+    const [approvedApps, donations, inventories] = await Promise.all([
+      this.prisma.volunteerApplication.findMany({
+        where: { eventId: { in: eventIds }, status: 'APPROVED' },
+        select: { eventId: true, volunteerRoleId: true },
+      }),
+      this.prisma.donation.findMany({
+        where: {
+          eventId: { in: eventIds },
+          status: { notIn: ['CANCELLED', 'REJECTED'] },
+        },
+        select: {
+          eventId: true,
+          donationNeedId: true,
+          quantity: true,
+          receivedQuantity: true,
+        },
+      }),
+      this.prisma.inventory.findMany({
+        where: { eventId: { in: eventIds } },
+        select: {
+          eventId: true,
+          itemTypeId: true,
+          unitId: true,
+          receivedQuantity: true,
+          distributedQuantity: true,
+        },
+      }),
+    ]);
+
+    const approvedByRole = new Map<string, number>();
+    for (const app of approvedApps) {
+      approvedByRole.set(
+        app.volunteerRoleId,
+        (approvedByRole.get(app.volunteerRoleId) ?? 0) + 1,
+      );
+    }
+
+    const pledgedByNeed = new Map<string, number>();
+    const receivedByNeed = new Map<string, number>();
+    for (const don of donations) {
+      const qty =
+        typeof don.quantity === 'object' && don.quantity?.toNumber
+          ? don.quantity.toNumber()
+          : Number(don.quantity ?? 0);
+      const rec =
+        typeof don.receivedQuantity === 'object' &&
+        don.receivedQuantity?.toNumber
+          ? don.receivedQuantity.toNumber()
+          : Number(don.receivedQuantity ?? 0);
+      pledgedByNeed.set(
+        don.donationNeedId,
+        (pledgedByNeed.get(don.donationNeedId) ?? 0) + qty,
+      );
+      receivedByNeed.set(
+        don.donationNeedId,
+        (receivedByNeed.get(don.donationNeedId) ?? 0) + rec,
+      );
+    }
+
+    const inventoryByKey = new Map<
+      string,
+      { received: number; distributed: number }
+    >();
+    for (const inv of inventories) {
+      const rec =
+        typeof inv.receivedQuantity === 'object' && inv.receivedQuantity?.toNumber
+          ? inv.receivedQuantity.toNumber()
+          : Number(inv.receivedQuantity ?? 0);
+      const dist =
+        typeof inv.distributedQuantity === 'object' &&
+        inv.distributedQuantity?.toNumber
+          ? inv.distributedQuantity.toNumber()
+          : Number(inv.distributedQuantity ?? 0);
+      inventoryByKey.set(`${inv.eventId}:${inv.itemTypeId}:${inv.unitId}`, {
+        received: rec,
+        distributed: dist,
+      });
+    }
+
+    return events.map((ev) => ({
+      ...ev,
+      volunteerRoles: Array.isArray(ev.volunteerRoles)
+        ? ev.volunteerRoles.map((r: any) => ({
+            ...r,
+            approvedQuantity: approvedByRole.get(r.id) ?? 0,
+          }))
+        : ev.volunteerRoles,
+      donationNeeds: Array.isArray(ev.donationNeeds)
+        ? ev.donationNeeds.map((n: any) => {
+            const inv = inventoryByKey.get(
+              `${ev.id}:${n.itemTypeId}:${n.unitId}`,
+            );
+            return {
+              ...n,
+              pledgedQuantity: pledgedByNeed.get(n.id) ?? 0,
+              receivedQuantity:
+                inv?.received ?? receivedByNeed.get(n.id) ?? 0,
+              distributedQuantity: inv?.distributed ?? 0,
+            };
+          })
+        : ev.donationNeeds,
+    }));
   }
 
   /**
@@ -386,7 +507,7 @@ export class EventsService {
       event.status === EventStatus.CLOSED ||
       event.status === EventStatus.CANCELLED
     ) {
-      // Platform Admin được phép kiểm duyệt / mở lại (reopen) sự kiện CLOSED -> PUBLISHED hoặc CANCELLED
+      // Platform Admin được phép kiểm duyệt / mở lại (reopen) sự kiện CLOSED -> PUBLISHED
       if (
         actor.systemRole !== SystemRole.ADMIN ||
         event.status === EventStatus.CANCELLED
@@ -535,7 +656,11 @@ export class EventsService {
     if (!event) {
       throw new NotFoundException('Event not found');
     }
-    return this.repository.findDonationNeedsByEventId(eventId);
+    const needs = await this.repository.findDonationNeedsByEventId(eventId);
+    const [enriched] = await this.enrichEvents([
+      { id: eventId, donationNeeds: needs },
+    ]);
+    return enriched.donationNeeds;
   }
 
   /**

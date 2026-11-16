@@ -15,7 +15,7 @@ import {
 } from '@nestjs/swagger';
 import { TripsService } from './trips.service.js';
 import { CreateTripDto, UpdateTripDto } from './dto/index.js';
-import { CurrentUser } from '../../common/decorators/index.js';
+import { CurrentUser, Public } from '../../common/decorators/index.js';
 import { PaginationDto } from '../../common/dto/pagination.dto.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 
@@ -25,9 +25,10 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user.js
 export class TripsController {
   constructor(private readonly service: TripsService) {}
 
+  @Public()
   @Get('event/:eventId')
   @ApiOperation({
-    summary: 'Organizer xem danh sách chuyến xe cứu trợ theo sự kiện (TRP-01)',
+    summary: 'Xem danh sách chuyến xe cứu trợ theo sự kiện (TRP-01)',
   })
   @ApiResponse({
     status: 200,
@@ -35,10 +36,10 @@ export class TripsController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Không có quyền Organizer trên sự kiện.',
+    description: 'Không có quyền Organizer trên sự kiện nháp.',
   })
   getByEvent(
-    @CurrentUser() actor: AuthenticatedUser,
+    @CurrentUser() actor: AuthenticatedUser | undefined,
     @Param('eventId') eventId: string,
     @Query() query: PaginationDto,
   ) {

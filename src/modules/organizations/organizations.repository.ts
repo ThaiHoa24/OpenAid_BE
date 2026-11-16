@@ -15,7 +15,6 @@ export class OrganizationsRepository {
           select: {
             userId: true,
             role: true,
-            joinedAt: true,
             createdAt: true,
             user: {
               select: {
@@ -27,6 +26,12 @@ export class OrganizationsRepository {
                 isActive: true,
               },
             },
+          },
+        },
+        _count: {
+          select: {
+            events: true,
+            members: true,
           },
         },
       },
@@ -49,6 +54,14 @@ export class OrganizationsRepository {
     return this.prisma.organization.findMany({
       skip,
       take,
+      include: {
+        _count: {
+          select: {
+            events: true,
+            members: true,
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

@@ -152,6 +152,10 @@ export class VolunteersService {
         id,
         {
           status: dto.status,
+          rejectionReason:
+            dto.status === VolunteerApplicationStatus.REJECTED
+              ? dto.rejectionReason?.trim() || null
+              : null,
           reviewedById: actor.id,
           reviewedAt: new Date(),
         },
