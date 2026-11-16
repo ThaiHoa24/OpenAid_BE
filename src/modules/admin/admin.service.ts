@@ -52,6 +52,10 @@ export class AdminService {
         where: { id },
         data: {
           status: dto.status,
+          rejectionReason:
+            dto.status === OrgStatus.REJECTED || dto.status === OrgStatus.SUSPENDED
+              ? dto.rejectionReason?.trim() || null
+              : null,
           reviewedById: actor.id,
           reviewedAt: new Date(),
         },
@@ -93,6 +97,25 @@ export class AdminService {
         systemRole: true,
         isActive: true,
         createdAt: true,
+        memberships: {
+          select: {
+            role: true,
+            organizationId: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            volunteerApplications: true,
+            donations: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });

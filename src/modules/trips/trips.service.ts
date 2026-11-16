@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -11,6 +12,7 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user.js
 import {
   BatchStatus,
   DistributionPointStatus,
+  EventStatus,
   TripStatus,
   TripVolunteerRole,
   VolunteerApplicationStatus,
@@ -35,16 +37,29 @@ export class TripsService {
   }
 
   async getTripsByEvent(
-    actor: AuthenticatedUser,
+    actor: AuthenticatedUser | undefined,
     eventId: string,
     query: PaginationDto,
   ) {
-    if (actor.systemRole !== SystemRole.ADMIN) {
-      await this.organizationAccessService.requireEventOrganizer(
-        actor.id,
-        eventId,
-      );
+    const event =
+      typeof this.prisma?.event?.findUnique === 'function'
+        ? await this.prisma.event.findUnique({ where: { id: eventId } })
+        : null;
+
+    if (event && event.status === EventStatus.DRAFT) {
+      if (!actor) {
+        throw new ForbiddenException(
+          'Only organizers can view trips of a draft event',
+        );
+      }
+      if (actor.systemRole !== SystemRole.ADMIN) {
+        await this.organizationAccessService.requireEventOrganizer(
+          actor.id,
+          eventId,
+        );
+      }
     }
+
     const skip = query.skip ?? 0;
     const take = query.take ?? 20;
     return this.repository.findByEvent(eventId, skip, take);
@@ -56,7 +71,11 @@ export class TripsService {
       throw new NotFoundException('Trip not found');
     }
 
-    if (actor.systemRole !== SystemRole.ADMIN) {
+    const isAssignedVolunteer = (trip.volunteers || []).some(
+      (v: any) => v.application?.user?.id === actor.id,
+    );
+
+    if (actor.systemRole !== SystemRole.ADMIN && !isAssignedVolunteer) {
       await this.organizationAccessService.requireEventOrganizer(
         actor.id,
         trip.eventId,

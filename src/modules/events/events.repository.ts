@@ -53,6 +53,13 @@ export const EVENT_DETAIL_INCLUDE = {
       },
     },
   },
+  _count: {
+    select: {
+      donations: true,
+      volunteerApplications: true,
+      trips: true,
+    },
+  },
 } as const;
 
 /**

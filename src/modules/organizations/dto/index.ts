@@ -45,6 +45,11 @@ export class UpdateOrganizationDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   phoneNumber?: string;
 

@@ -114,14 +114,33 @@ export class TripsRepository {
                       id: true,
                       fullName: true,
                       email: true,
+                      phoneNumber: true,
                     },
                   },
+                  volunteerRole: true,
                 },
               },
             },
           },
           points: {
             orderBy: { position: 'asc' },
+            include: {
+              records: {
+                include: {
+                  tripBatch: {
+                    include: {
+                      batch: true,
+                    },
+                  },
+                },
+              },
+              evidence: {
+                where: {
+                  reviewStatus: 'APPROVED',
+                  privacyConfirmed: true,
+                },
+              },
+            },
           },
         },
       }),

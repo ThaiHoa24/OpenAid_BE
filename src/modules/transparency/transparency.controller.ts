@@ -36,7 +36,7 @@ export class TransparencyController {
     return this.service.searchByTrackingId(trackingId);
   }
 
-  @ApiBearerAuth('JWT-auth')
+  @Public()
   @Get('timeline')
   @ApiOperation({
     summary: 'OA-S5-08: Lấy dòng thời gian minh bạch (timeline) theo thực thể',
@@ -46,7 +46,7 @@ export class TransparencyController {
     description: 'Danh sách log minh bạch theo thứ tự thời gian',
   })
   timeline(
-    @CurrentUser() actor: AuthenticatedUser,
+    @CurrentUser() actor: AuthenticatedUser | undefined,
     @Query() query: TimelineQueryDto,
   ) {
     return this.service.getTimeline(actor, query);

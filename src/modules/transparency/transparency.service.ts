@@ -36,8 +36,8 @@ export class TransparencyService {
   /**
    * KAN-18 / FR21: Entity transparency timeline
    */
-  async getTimeline(actor: AuthenticatedUser, query: TimelineQueryDto) {
-    const isPublicOnly = actor.systemRole !== SystemRole.ADMIN;
+  async getTimeline(actor: AuthenticatedUser | undefined, query: TimelineQueryDto) {
+    const isPublicOnly = actor?.systemRole !== SystemRole.ADMIN;
     return this.repository.findTimeline(
       query.entityType,
       query.entityId,

@@ -46,6 +46,7 @@ export class DashboardService {
       batchesCount,
       tripsCount,
       applicationsCount,
+      pendingEvidencesCount,
       inventories,
       donations,
       applications,
@@ -54,6 +55,11 @@ export class DashboardService {
       this.prisma.batch.count({ where: { eventId } }),
       this.prisma.trip.count({ where: { eventId } }),
       this.prisma.volunteerApplication.count({ where: { eventId } }),
+      typeof this.prisma?.evidence?.count === 'function'
+        ? this.prisma.evidence.count({
+            where: { trip: { eventId }, reviewStatus: 'PENDING' },
+          })
+        : Promise.resolve(0),
       this.prisma.inventory.findMany({
         where: { eventId },
         include: {
@@ -78,6 +84,13 @@ export class DashboardService {
         },
       }),
     ]);
+
+    const pendingDonationsCount = donations.filter(
+      (d) => d.status === DonationStatus.PENDING,
+    ).length;
+    const pendingApplicationsCount = applications.filter(
+      (a) => a.status === VolunteerApplicationStatus.PENDING,
+    ).length;
 
     // Inventory summary
     const inventorySummary = inventories.map((inv) => ({
@@ -199,6 +212,9 @@ export class DashboardService {
         batchesCount,
         tripsCount,
         applicationsCount,
+        pendingDonationsCount,
+        pendingApplicationsCount,
+        pendingEvidencesCount,
         totalNeededQuantity,
         totalReceivedQuantity,
         totalDistributedQuantity,

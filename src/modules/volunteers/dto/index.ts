@@ -44,4 +44,12 @@ export class ReviewVolunteerDto {
     { message: 'status chỉ nhận giá trị APPROVED hoặc REJECTED' },
   )
   status!: VolunteerApplicationStatus;
+
+  @ApiPropertyOptional({
+    description: 'Lý do từ chối đơn ứng tuyển (nếu status là REJECTED)',
+    example: 'Vị trí đã đủ số lượng tình nguyện viên phù hợp.',
+  })
+  @IsOptional()
+  @IsString({ message: 'rejectionReason phải là chuỗi ký tự' })
+  rejectionReason?: string;
 }
