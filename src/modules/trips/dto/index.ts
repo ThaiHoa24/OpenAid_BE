@@ -102,3 +102,47 @@ export class UpdateTripDto {
   @IsEnum(TripStatus)
   status!: TripStatus;
 }
+
+/**
+ * Atomic distribution record + evidence upload for a trip point
+ * Combines DIS-01 (create distribution record) + Evidence upload in one transaction
+ */
+export class RecordDistributionWithEvidenceDto {
+  @ApiProperty({ format: 'uuid', description: 'TripBatch ID (from trip.batches[].id)' })
+  @IsUUID()
+  tripBatchId!: string;
+
+  @ApiProperty({ format: 'uuid', description: 'Distribution Point ID' })
+  @IsUUID()
+  distributionPointId!: string;
+
+  @ApiProperty({ minimum: 0.001, description: 'Số lượng phát thực tế' })
+  @IsString()
+  @IsNotEmpty()
+  distributedQuantity!: string;
+
+  @ApiPropertyOptional({ description: 'Số hộ dân nhận quà' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  beneficiaryCount?: number;
+
+  @ApiPropertyOptional({ description: 'Ghi chú biên bản cấp phát' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ApiProperty({ description: 'URL ảnh minh chứng (bắt buộc)' })
+  @IsUrl()
+  @IsNotEmpty()
+  imageUrl!: string;
+
+  @ApiProperty({ description: 'Chú thích ảnh minh chứng (bắt buộc)' })
+  @IsString()
+  @IsNotEmpty()
+  caption!: string;
+
+  @ApiProperty({ description: 'Xác nhận cam kết bảo vệ quyền riêng tư (bắt buộc true)' })
+  @IsOptional()
+  privacyConfirmed?: boolean;
+}

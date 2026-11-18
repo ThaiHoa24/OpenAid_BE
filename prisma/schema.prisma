@@ -92,6 +92,7 @@ model Event {
   startDate             DateTime               @db.Timestamptz(6)
   endDate               DateTime?              @db.Timestamptz(6)
   status                EventStatus            @default(DRAFT)
+  category              String?                @db.VarChar(80)
   createdAt             DateTime               @default(now()) @db.Timestamptz(6)
   updatedAt             DateTime               @default(now()) @db.Timestamptz(6)
   batches               Batch[]
