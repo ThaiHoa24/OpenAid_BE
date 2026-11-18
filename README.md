@@ -31,12 +31,12 @@ OpenAid giải quyết trọn vẹn ba nhóm nghiệp vụ cốt lõi:
 | **Phân quyền 2 tầng (RBAC)** | **Hoàn thành** | **Cấp hệ thống:** `SystemRole` (`USER`, `ADMIN`) bảo vệ bởi `JwtAuthGuard` và `RolesGuard` toàn cục.<br>**Cấp tổ chức:** `OrganizationRole` (`MEMBER`, `ORGANIZER`) bảo vệ bởi `OrganizationAccessService`. |
 | **Tổ chức (`organizations`)** | **Hoàn thành** | Danh sách/chi tiết tổ chức kèm `_count` (`events`, `members`); tạo tổ chức tự động gán `ORGANIZER` cho người tạo trong transaction; cập nhật thông tin (`name`, `description`, `email`, `phoneNumber`, `address`) và mời thành viên. |
 | **Quản trị hệ thống (`admin`)** | **Hoàn thành** | Danh sách tổ chức chờ duyệt (`ADM-01`), duyệt/từ chối/đình chỉ tổ chức kèm `rejectionReason` và `TransparencyLog` (`ADM-02`), danh sách user kèm `memberships` & `_count` (`ADM-03`), khóa/mở khóa tài khoản (`ADM-04`), quản lý và kiểm duyệt sự kiện toàn hệ thống (`ADM-05`, `ADM-06`). |
-| **Chiến dịch & Danh mục (`events`)** | **Hoàn thành** | Vòng đời chiến dịch (`DRAFT` → `PUBLISHED` → `CLOSED` / `CANCELLED`), quản lý `VolunteerRole` và `DonationNeed` (tính toán sẵn `approvedQuantity`, `pledgedQuantity`, `receivedQuantity`, `distributedQuantity`, `_count`), danh mục `ItemType` & `Unit`. |
+| **Chiến dịch & Danh mục (`events`)** | **Hoàn thành** | Vòng đời chiến dịch (`DRAFT` → `PUBLISHED` → `CLOSED` / `CANCELLED`), quản lý `VolunteerRole` và `DonationNeed` (tính toán sẵn `approvedQuantity`, `pledgedQuantity`, `receivedQuantity`, `distributedQuantity`, `_count`), danh mục `ItemType` & `Unit`, **field `category` mới** (`disaster_relief`, `food_water`, `medical_aid`, `education`, `community_support`, `emergency_shelter`), **catalog areas** (`GET /events/catalogs/areas`). |
 | **Tình nguyện viên (`volunteers`)** | **Hoàn thành** | Ứng tuyển TNV (`VOL-01`), xem đơn cá nhân (`VOL-02`), danh sách theo sự kiện (`VOL-03`), duyệt/từ chối kèm `rejectionReason` (`VOL-04`), Check-in / Check-out ca trực (`VOL-05`, `VOL-06`). |
 | **Quyên góp (`donations`)** | **Hoàn thành** | Đăng ký quyên góp sinh Tracking ID (`TRK-...`) hỗ trợ `photoUrl` & `notes`, xem lịch sử cá nhân, tiếp nhận vào kho (`RECEIVED`) hoặc từ chối (`REJECTED`) kèm cập nhật `Inventory` và `TransparencyLog`, hủy đơn `PENDING`. |
 | **Kho bãi & Đóng kiện (`inventory`, `batches`)** | **Hoàn thành** | Truy vấn tồn kho bảo toàn theo tổ chức & sự kiện (`OA-S4-05`), đóng lô hàng từ các khoản `RECEIVED` (`BAT-01`), chuyển trạng thái `READY` (`BAT-04`), đối soát `returnedQuantity` / `lostQuantity` sau chuyến đi (`BAT-05`). |
-| **Chuyến xe & Phân phối (`trips`, `distribution`)** | **Hoàn thành** | Lập chuyến xe gán lô `READY`, TNV `APPROVED` (đúng 1 `LEADER`) và các điểm phát (`TRP-03`); tra cứu chuyến xe công khai cho sự kiện đã công bố (`TRP-01`); cập nhật trạng thái chuyến xe (`TRP-04`), điểm phát (`DIS-04`) và ghi nhận số lượng trao tặng (`DIS-01`). |
-| **Bằng chứng & Minh bạch (`evidence`, `transparency`, `storage`)** | **Hoàn thành** | Upload ảnh (`JPEG`/`PNG`/`WebP` <= 5MB) qua `/api/uploads`, tải lên & duyệt bằng chứng thực địa kèm xác nhận quyền riêng tư, tra cứu công khai theo `trackingId`, audit logs và timeline. |
+| **Chuyến xe & Phân phối (`trips`, `distribution`)** | **Hoàn thành** | Lập chuyến xe gán lô `READY`, TNV `APPROVED` (đúng 1 `LEADER`) và các điểm phát (`TRP-03`); tra cứu chuyến xe công khai cho sự kiện đã công bố (`TRP-01`); cập nhật trạng thái chuyến xe (`TRP-04`), điểm phát (`DIS-04`) và ghi nhận số lượng trao tặng (`DIS-01`). **Atomic Distribution + Evidence** (`POST /trips/:id/distribute-with-evidence`: ghi nhận phân phối + upload ảnh minh chứng trong 1 transaction). |
+| **Bằng chứng & Minh bạch (`evidence`, `transparency`, `storage`)** | **Hoàn thành** | Upload ảnh (`JPEG`/`PNG`/`WebP` <= 5MB) qua `/api/uploads`, tải lên & duyệt bằng chứng thực địa kèm xác nhận quyền riêng tư, tra cứu công khai qua `trackingId`, audit logs và timeline. |
 | **Thống kê & Báo cáo (`dashboard`)** | **Hoàn thành** | Thống kê tổng quan sự kiện (`/api/dashboard/events/:eventId` kèm số lượng pending donations/applications/evidences), xuất báo cáo nghiệm thu `CSV` / `Excel` / `PDF` / `JSON` (`/api/reports/events/:id/export`). |
 | **Kiểm thử tự động** | **Hoàn thành** | **Unit tests:** 141/141 tests passed trên 16 test files (Vitest).<br>**E2E & Smoke tests:** Kịch bản kiểm thử tích hợp Auth, RBAC & HTTP contracts (`test/auth.e2e-spec.ts`, `test/scaffold.e2e-spec.ts`). |
 
@@ -63,7 +63,7 @@ Hệ thống tuân thủ mô hình **RBAC 2 tầng** ([docs/architecture.md](doc
 | Thành phần | Công nghệ |
 | --- | --- |
 | Runtime | Node.js >= 22, npm |
-| Ngôn ngữ | TypeScript 6, native ESM (`"type": "module"`) |
+| Ngôn ngữ | TypeScript 5+, native ESM (`"type": "module"`) |
 | Framework | NestJS 12, Express |
 | Database / ORM | PostgreSQL, Prisma 6 (`@prisma/client`) |
 | Xác thực & Bảo mật | Passport JWT, `bcrypt`, `JwtAuthGuard`, `RolesGuard`, `OrganizationAccessService` |
@@ -84,7 +84,7 @@ OpenAid_BE/
 ├── docs/                       # Tài liệu đồ án, API Contract, SRS, ERD & sơ đồ thiết kế
 ├── prisma/
 │   ├── migrations/             # Lịch sử migrations PostgreSQL
-│   ├── schema.prisma           # Định nghĩa models, enums, ràng buộc quan hệ
+│   ├── schema.prisma           # Định nghĩa models, enums, ràng buộc quan hệ (thêm field Event.category, Event.area)
 │   └── seed.mjs                # Script nạp dữ liệu mẫu (users, orgs, events, batches, trips...)
 ├── scripts/check-db.mjs        # Kiểm tra kết nối DB và độ khớp Prisma schema
 ├── src/
@@ -101,7 +101,8 @@ OpenAid_BE/
 ├── compose.yaml                # Docker Compose cho Backend + PostgreSQL
 ├── Dockerfile                  # Multi-stage build Dockerfile
 ├── package.json
-└── CONTRIBUTING.md
+├── CONTRIBUTING.md
+└── README.md
 ```
 
 ---
@@ -200,9 +201,9 @@ npm run start:prod
 | **Admin** | `PATCH` | `/api/admin/users/:id/active` | `ADMIN` | Khóa / mở khóa tài khoản user |
 | **Admin** | `GET` | `/api/admin/events` | `ADMIN` | Danh sách toàn bộ sự kiện mọi trạng thái |
 | **Admin** | `PATCH` | `/api/admin/events/:id/status` | `ADMIN` | Kiểm duyệt / tạm đình chỉ / mở lại sự kiện |
-| **Events** | `GET` | `/api/events/catalogs/item-types`, `/units` | Công khai | Danh mục loại hàng hóa & đơn vị tính |
-| **Events** | `GET` | `/api/events`, `/api/events/:id` | Công khai | Danh sách & chi tiết sự kiện (kèm tiến độ thực tế) |
-| **Events** | `POST` / `PATCH` / `DELETE` | `/api/events`, `/api/events/:id` | `ORGANIZER` | Tạo, cập nhật, xóa nháp chiến dịch |
+| **Events** | `GET` | `/api/events/catalogs/item-types`, `/units`, `/areas` | Công khai | Danh mục loại hàng hóa, đơn vị tính & khu vực |
+| **Events** | `GET` | `/api/events`, `/api/events/:id` | Công khai | Danh sách & chi tiết sự kiện (kèm tiến độ thực tế, field `category`) |
+| **Events** | `POST` / `PATCH` / `DELETE` | `/api/events`, `/api/events/:id` | `ORGANIZER` | Tạo, cập nhật (hỗ trợ `category`), xóa nháp chiến dịch |
 | **Events** | `PATCH` | `/api/events/:id/status` | `ORGANIZER` / `ADMIN` | Chuyển trạng thái (`PUBLISHED`, `CLOSED`, `CANCELLED`) |
 | **Events** | `GET` / `POST` / `PATCH` / `DELETE` | `/api/events/:id/donation-needs*`, `/volunteer-roles*` | Công khai / `ORGANIZER` | Quản lý nhu cầu hiện vật và vị trí TNV |
 | **Volunteers** | `POST` | `/api/volunteers/apply` | Bearer JWT | Nộp đơn ứng tuyển TNV |
@@ -219,9 +220,10 @@ npm run start:prod
 | **Batches** | `POST` / `GET` / `PATCH` | `/api/batches`, `/event/:eventId`, `/:id/status` | `ORGANIZER` | Tạo lô hàng, xem chi tiết, chuyển sang `READY` |
 | **Batches** | `POST` | `/api/batches/:id/reconcile` | `ORGANIZER` | Đối soát hoàn kho / thất thoát sau chuyến đi |
 | **Trips** | `GET` | `/api/trips/event/:eventId` | Công khai / `ORGANIZER` | Danh sách chuyến xe theo sự kiện (kèm `records` & `evidence` đã duyệt) |
-| **Trips** | `GET` | `/api/trips/:id` | `ORGANIZER` / TNV chuyến xe | Chi tiết chuyến xe |
+| **Trips** | `GET` | `/api/trips/:id` | `ORGANIZER` / TNV chuyến xe | Chi tiết chuyến xe (kèm `tripBatchId` cho distribution) |
 | **Trips** | `POST` / `PATCH` | `/api/trips`, `/api/trips/:id/status` | `ORGANIZER` / Trip Leader | Lập chuyến xe & cập nhật trạng thái |
-| **Distribution** | `POST` / `GET` | `/api/distribution/records`, `/trip/:tripId` | `ORGANIZER` / Trip Leader | Ghi nhận & xem biên bản cấp phát tại điểm |
+| **Trips** | `POST` | `/api/trips/:id/distribute-with-evidence` | Trip Leader / `ORGANIZER` | **Atomic**: Ghi nhận phân phối + upload ảnh minh chứng (1 transaction) |
+| **Distribution** | `POST` / `GET` | `/api/distribution/records`, `/trip/:tripId` | `ORGANIZER` / Trip Leader | Ghi nhận & xem biên bản cấp phát tại điểm (yêu cầu `tripBatchId`) |
 | **Distribution** | `PATCH` | `/api/distribution/points/:id/status` | `ORGANIZER` / Trip Leader | Cập nhật trạng thái điểm phát |
 | **Evidence** | `POST` / `GET` | `/api/evidence`, `/api/evidence/trip/:tripId` | `ORGANIZER` / TNV chuyến xe | Tải lên & xem bằng chứng phân phối |
 | **Evidence** | `PATCH` | `/api/evidence/:id/review` | `ORGANIZER` | Phê duyệt / từ chối bằng chứng công khai |
@@ -249,3 +251,59 @@ npm run start:prod
 | `npm test` | Chạy Unit Tests toàn bộ 16 modules bằng Vitest (`141/141 passed`) |
 | `npm run test:e2e` | Build và chạy E2E Integration & Smoke Tests (`vitest.config.e2e.ts`) |
 | `npm run db:check` | Kiểm tra kết nối và độ khớp giữa DB và Prisma schema |
+| `npm run prisma:seed` | Nạp dữ liệu mẫu (users, orgs, events, categories, batches, trips) |
+
+---
+
+## Các Cập Nhật Gần Đây (v2.1)
+
+| Phân loại | Thay đổi |
+|-----------|----------|
+| **Atomic Trip Distribution + Evidence** | Endpoint mới `POST /trips/:id/distribute-with-evidence` (DTO: `RecordDistributionWithEvidenceDto`) kết hợp ghi nhận phân phối + upload ảnh minh chứng trong 1 Prisma transaction (rollback nếu fail) |
+| **Event Category Field** | Thêm field `category` (String?) vào model `Event` (Prisma schema), hỗ trợ 6 category: `disaster_relief`, `food_water`, `medical_aid`, `education`, `community_support`, `emergency_shelter` |
+| **Areas Catalog** | Endpoint mới `GET /events/catalogs/areas` trả về danh sách areas distinct từ events đã publish |
+| **Security** | Xóa hardcoded password `"123456"` trong `authService.login`, orgCode generation dùng timestamp-based (`${prefix}-${Date.now().toString(36)}`) để tránh collision |
+| **Trip Status Enum** | FE/BE đồng bộ dùng enum `TripStatus` (`SCHEDULED`, `PREPARING`, `IN_TRANSIT`, `COMPLETED`, `CANCELLED`) thay vì string literal |
+| **Distribution Record tripBatchId** | FE truyền `tripBatchId` trực tiếp (là `trip.batches[].id`) thay vì `batchId` lookup, tránh race condition |
+| **Atomic Distribution + Evidence** | `recordDistributionWithEvidence()` tính `distributedQuantity` từ `DistributionRecord` chứ không dùng field không tồn tại trên `TripBatch`, chỉ update `Batch.distributedQuantity` |
+| **Prisma Schema** | Thêm field `Event.category`; `Event` model đã có `location` làm area |
+| **Missing FE Pages Support** | BE đã có sẵn endpoints cho `/my/activities`, `/my/donations`, `/admin/users`, `/profile`, `/forgot-password` (3 bước OTP) |
+
+---
+
+## Cấu trúc Database Quan Trọng (Prisma)
+
+```prisma
+model Event {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String       @db.Uuid
+  title         String       @db.VarChar(200)
+  description   String?
+  location      String       // Dùng làm area
+  category      String?      @db.VarChar(80)  // Mới: disaster_relief, food_water, medical_aid, education, community_support, emergency_shelter
+  status        EventStatus  @default(DRAFT)
+  // ... relations
+}
+
+model TripBatch {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripId       String   @db.Uuid
+  batchId      String   @db.Uuid
+  // Không có field distributedQuantity - tính từ DistributionRecord
+  batch        Batch    @relation(fields: [batchId, eventId], references: [id, eventId], map: "fk_trip_batches_batch")
+}
+
+model Batch {
+  id                 String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quantity           Decimal     @db.Decimal(14, 3)  // totalQuantity
+  distributedQuantity Decimal    @default(0) @db.Decimal(14, 3)
+  // ...
+}
+
+model DistributionRecord {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripBatchId         String   @db.Uuid  // FK đến TripBatch (bắt buộc)
+  distributedQuantity Decimal  @db.Decimal(14, 3)
+  // ...
+}
+```

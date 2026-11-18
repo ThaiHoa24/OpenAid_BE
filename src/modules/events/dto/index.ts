@@ -106,6 +106,14 @@ export class CreateEventDto {
   @IsDateString()
   endDate?: string;
 
+  @ApiPropertyOptional({
+    description: 'Danh mục cứu trợ (disaster_relief, food_water, medical_aid, education, community_support, emergency_shelter)',
+    example: 'disaster_relief',
+  })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
   @ApiPropertyOptional({ type: [VolunteerRoleInputDto] })
   @IsOptional()
   @IsArray()

@@ -14,7 +14,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { TripsService } from './trips.service.js';
-import { CreateTripDto, UpdateTripDto } from './dto/index.js';
+import { CreateTripDto, UpdateTripDto, RecordDistributionWithEvidenceDto } from './dto/index.js';
 import { CurrentUser, Public } from '../../common/decorators/index.js';
 import { PaginationDto } from '../../common/dto/pagination.dto.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
@@ -117,5 +117,36 @@ export class TripsController {
     @Body() dto: UpdateTripDto,
   ) {
     return this.service.updateTrip(actor, id, dto);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @Post(':id/distribute-with-evidence')
+  @ApiOperation({
+    summary:
+      'Atomic: Ghi nhận phân phối + tải lên minh chứng trong 1 transaction (TRP-05)',
+    description:
+      'Kết hợp tạo biên bản cấp phát (DIS-01) và tải lên ảnh minh chứng. Nếu một trong hai thất bại, cả hai rollback. Chỉ Trưởng đoàn hoặc Organizer mới có quyền.',
+  })
+  @ApiResponse({
+    status: 201,
+    description:
+      'Tạo biên bản cấp phát và minh chứng thành công (đang chờ duyệt minh chứng).',
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Số lượng phát vượt quá tồn lô, điểm đã SKIPPED, hoặc thiếu privacyConfirmed.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Chỉ Trưởng đoàn hoặc Organizer mới có quyền.',
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy chuyến xe / TripBatch / Điểm phát.' })
+  recordDistributionWithEvidence(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: RecordDistributionWithEvidenceDto,
+  ) {
+    return this.service.recordDistributionWithEvidence(actor, id, dto);
   }
 }

@@ -31,6 +31,7 @@ export class EventsService {
     private readonly transparencyRepo: TransparencyRepository,
   ) {}
 
+
   /**
    * US-07 & US-08: Khởi tạo Chiến dịch Cứu trợ (Event DRAFT)
    * kèm cấu hình Vị trí tuyển TNV (VolunteerRole) và Nhu cầu hiện vật (DonationNeed).
@@ -109,6 +110,7 @@ export class EventsService {
           startDate: start,
           endDate: end,
           status: EventStatus.DRAFT,
+          category: dto.category?.trim(),
           volunteerRoles:
             dto.volunteerRoles && dto.volunteerRoles.length > 0
               ? {
@@ -130,7 +132,7 @@ export class EventsService {
                   })),
                 }
               : undefined,
-        },
+        } as Prisma.EventCreateInput,
         tx,
       );
     });
@@ -477,7 +479,8 @@ export class EventsService {
               : undefined,
           startDate: dto.startDate ? new Date(dto.startDate) : undefined,
           endDate: end,
-        },
+          category: dto.category !== undefined ? dto.category?.trim() : undefined,
+        } as Prisma.EventUpdateInput,
         tx,
       );
 
@@ -646,6 +649,20 @@ export class EventsService {
    */
   async getActiveUnits() {
     return this.repository.findActiveUnits();
+  }
+
+  /**
+   * Lấy danh mục khu vực (AREAS) từ các sự kiện hiện có
+   */
+  async getActiveAreas() {
+    const events = await this.prisma.event.findMany({
+      where: { status: { not: EventStatus.DRAFT } },
+      select: { location: true },
+    });
+    const areas = Array.from(
+      new Set(events.map((e) => e.location).filter(Boolean))
+    ).sort();
+    return areas;
   }
 
   /**

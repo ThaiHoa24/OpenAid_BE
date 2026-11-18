@@ -49,6 +49,14 @@ export class EventsController {
     return this.service.getActiveUnits();
   }
 
+  @Public()
+  @Get('catalogs/areas')
+  @ApiOperation({ summary: 'Public catalog: get available event areas' })
+  @ApiResponse({ status: 200, description: 'List of areas' })
+  getAreas() {
+    return this.service.getActiveAreas();
+  }
+
   @ApiBearerAuth('JWT-auth')
   @Patch('donation-needs/:id')
   @ApiOperation({

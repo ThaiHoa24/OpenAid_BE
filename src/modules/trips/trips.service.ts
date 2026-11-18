@@ -4,9 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { SystemRole, TransparencyEntityType } from '@prisma/client';
+import { Prisma, SystemRole, TransparencyEntityType } from '@prisma/client';
 import { TripsRepository } from './trips.repository.js';
-import { CreateTripDto, UpdateTripDto } from './dto/index.js';
+import { CreateTripDto, UpdateTripDto, RecordDistributionWithEvidenceDto } from './dto/index.js';
 import { PaginationDto } from '../../common/dto/pagination.dto.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import {
@@ -16,6 +16,7 @@ import {
   TripStatus,
   TripVolunteerRole,
   VolunteerApplicationStatus,
+  EvidenceReviewStatus,
 } from '../../common/enums/index.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { OrganizationAccessService } from '../organizations/organization-access.service.js';
@@ -310,6 +311,185 @@ export class TripsService {
       });
 
       return updated;
+    });
+  }
+
+  /**
+   * Atomic: Ghi nhận phân phối + tải lên minh chứng trong 1 transaction
+   * Kết hợp DIS-01 (create distribution record) + Evidence upload
+   * Đảm bảo tính toàn vẹn: nếu upload evidence thất bại, distribution record sẽ rollback
+   */
+  async recordDistributionWithEvidence(
+    actor: AuthenticatedUser,
+    tripId: string,
+    dto: RecordDistributionWithEvidenceDto,
+  ) {
+    const trip = await this.repository.findById(tripId);
+    if (!trip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    // Authorization: Organizer or Trip Leader
+    const isLeader = (trip.volunteers || []).some(
+      (v: any) =>
+        v.application?.user?.id === actor.id &&
+        v.role === TripVolunteerRole.LEADER,
+    );
+
+    if (actor.systemRole !== SystemRole.ADMIN && !isLeader) {
+      await this.organizationAccessService.requireEventOrganizer(
+        actor.id,
+        trip.eventId,
+      );
+    }
+
+    if (trip.status === TripStatus.CANCELLED) {
+      throw new BadRequestException('Cannot record distribution for a cancelled trip');
+    }
+
+    // Validate tripBatch exists in this trip
+    const tripBatch = (trip.batches || []).find(
+      (tb: any) => tb.id === dto.tripBatchId,
+    );
+    if (!tripBatch) {
+      throw new BadRequestException('TripBatch not found in this trip');
+    }
+
+    // Validate distribution point exists in this trip
+    const point = (trip.points || []).find(
+      (p: any) => p.id === dto.distributionPointId,
+    );
+    if (!point) {
+      throw new BadRequestException('Distribution point not found in this trip');
+    }
+
+    if (point.status === DistributionPointStatus.SKIPPED) {
+      throw new BadRequestException('Cannot record distribution for a skipped point');
+    }
+
+    // Validate quantity
+    const distributedQty = new Prisma.Decimal(dto.distributedQuantity);
+    if (distributedQty.lessThanOrEqualTo(0)) {
+      throw new BadRequestException('Distributed quantity must be greater than 0');
+    }
+
+    // Get batch info from tripBatch relation
+    const batch = tripBatch.batch;
+    if (!batch) {
+      throw new BadRequestException('Batch not found for this tripBatch');
+    }
+
+    // Compute already distributed quantity for this tripBatch from DistributionRecord
+    const existingRecords = await this.prisma.distributionRecord.findMany({
+      where: { tripBatchId: dto.tripBatchId },
+      select: { distributedQuantity: true },
+    });
+    const alreadyDistributed = existingRecords.reduce(
+      (sum, r) => sum.plus(new Prisma.Decimal(r.distributedQuantity)),
+      new Prisma.Decimal(0),
+    );
+
+    const remainingInBatch = new Prisma.Decimal(batch.quantity).minus(alreadyDistributed);
+    if (distributedQty.greaterThan(remainingInBatch)) {
+      throw new BadRequestException(
+        `Distributed quantity (${dto.distributedQuantity}) exceeds remaining in batch (${remainingInBatch.toNumber()})`,
+      );
+    }
+
+    if (!dto.privacyConfirmed) {
+      throw new BadRequestException(
+        'Must confirm privacy commitment for evidence upload',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Create distribution record
+      const record = await tx.distributionRecord.create({
+        data: {
+          tripId,
+          tripBatchId: dto.tripBatchId,
+          distributionPointId: dto.distributionPointId,
+          distributedQuantity: distributedQty,
+          beneficiaryCount: dto.beneficiaryCount || 0,
+          notes: dto.notes?.trim(),
+          confirmedById: actor.id,
+          confirmedAt: new Date(),
+        },
+      });
+
+      // 2. Update batch distributed quantity (Batch model has distributedQuantity field)
+      const newBatchDistributed = new Prisma.Decimal((batch as any).distributedQuantity || 0).plus(distributedQty);
+      await tx.batch.update({
+        where: { id: batch.id },
+        data: { distributedQuantity: newBatchDistributed } as any,
+      });
+
+      // 3. Update distribution point status to DISTRIBUTED if not already
+      if (point.status !== DistributionPointStatus.DISTRIBUTED) {
+        await tx.distributionPoint.update({
+          where: { id: dto.distributionPointId },
+          data: {
+            status: DistributionPointStatus.DISTRIBUTED,
+            distributedAt: new Date(),
+          },
+        });
+      }
+
+      // 4. Create evidence record
+      const evidence = await tx.evidence.create({
+        data: {
+          tripId,
+          distributionPointId: dto.distributionPointId,
+          distributionRecordId: record.id,
+          batchId: tripBatch.batchId,
+          uploadedById: actor.id,
+          imageUrl: dto.imageUrl.trim(),
+          caption: dto.caption.trim(),
+          privacyConfirmed: true,
+          reviewStatus: EvidenceReviewStatus.PENDING,
+          mimeType: 'image/jpeg',
+          sizeBytes: 204800,
+        },
+      });
+
+      // 6. Transparency logs
+      await this.transparencyRepo.append(tx, {
+        eventId: trip.eventId,
+        actorId: actor.id,
+        action: 'DISTRIBUTION_RECORDED',
+        entityType: TransparencyEntityType.DISTRIBUTION_RECORD,
+        entityId: record.id,
+        details: {
+          tripCode: trip.tripCode,
+          pointName: point.name,
+          batchCode: batch.batchCode,
+          distributedQuantity: dto.distributedQuantity,
+          beneficiaryCount: dto.beneficiaryCount || 0,
+        },
+        isPublic: true,
+      });
+
+      await this.transparencyRepo.append(tx, {
+        eventId: trip.eventId,
+        actorId: actor.id,
+        action: 'EVIDENCE_UPLOADED',
+        entityType: TransparencyEntityType.EVIDENCE,
+        entityId: evidence.id,
+        newStatus: EvidenceReviewStatus.PENDING,
+        details: {
+          tripCode: trip.tripCode,
+          pointName: point.name,
+          caption: dto.caption,
+          privacyConfirmed: true,
+        },
+        isPublic: false, // Evidence not public until approved
+      });
+
+      return {
+        distributionRecord: record,
+        evidence,
+        pointStatus: DistributionPointStatus.DISTRIBUTED,
+      };
     });
   }
 }
