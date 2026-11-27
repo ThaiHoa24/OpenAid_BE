@@ -1,6 +1,6 @@
 # OpenAid Backend
 
-Backend cho **OpenAid – Transparent In-Kind Donation & Volunteer Coordination System** (Hệ thống điều phối tình nguyện viên và quyên góp hiện vật minh bạch), xây dựng theo kiến trúc **Modular Monolith** với NestJS 12, Prisma 6 và PostgreSQL. Tích hợp hoàn chỉnh với Frontend Next.js (`OpenAid_FE`).
+Backend cho **OpenAid – Transparent In-Kind Donation & Volunteer Coordination System** (Hệ thống điều phối tình nguyện viên, quyên góp hiện vật minh bạch và trợ lý AI tra cứu thời gian thực), xây dựng theo kiến trúc **Modular Monolith** với NestJS 12, Prisma 6, PostgreSQL và Google Gemini Developer API (`@google/genai`). Tích hợp hoàn chỉnh với Frontend Next.js (`OpenAid_FE`).
 
 > **Đề tài:** Đồ án Tốt nghiệp Capstone 1 (CMU-SE 450) – Viện Đào tạo Quốc tế, Đại học Duy Tân
 >
@@ -17,38 +17,40 @@ Backend cho **OpenAid – Transparent In-Kind Donation & Volunteer Coordination 
 
 ## Phạm vi và trạng thái triển khai
 
-OpenAid giải quyết trọn vẹn ba nhóm nghiệp vụ cốt lõi:
+OpenAid giải quyết trọn vẹn bốn nhóm nghiệp vụ cốt lõi:
 1. **Quản lý tổ chức, chiến dịch & tình nguyện viên**: Đăng ký tổ chức, xét duyệt pháp nhân, phát động chiến dịch, ứng tuyển, xét duyệt và điểm danh thực địa.
 2. **Tiếp nhận hiện vật, tồn kho bảo toàn & đóng kiện (Batch)**: Tiếp nhận quyên góp kèm Tracking ID, tự động cập nhật tồn kho bảo toàn (`Available`, `Reserved`, `Distributed`, `Lost`), gom lô hàng và đối soát sau chuyến đi.
-3. **Điều phối chuyến xe, bằng chứng thực địa & minh bạch công khai**: Lập chuyến xe (1 Trip Leader + TNV + các lô hàng `READY`), cập nhật điểm phát, ghi nhận bàn giao, duyệt ảnh minh chứng (ẩn danh quyền riêng tư) và tra cứu hành trình công khai qua Tracking ID.
+3. **Điều phối chuyến xe, bằng chứng thực địa & minh bạch công khai**: Lập chuyến xe (1 Trip Leader + TNV + các lô hàng `READY`), cập nhật điểm phát, ghi nhận bàn giao nguyên tử kèm ảnh minh chứng (ẩn danh quyền riêng tư) và tra cứu hành trình công khai qua Tracking ID.
+4. **Trợ lý AI OpenAid (`ai`)**: Tích hợp Gemini Developer API (`@google/genai`) kết hợp RAG Knowledge Base + 12 Function Calling tools có kiểm soát phân quyền RBAC, trả kèm thẻ chiến dịch có ảnh thật và đồng bộ lịch sử hội thoại theo từng tài khoản `User` trong PostgreSQL.
 
-### Trạng thái các module
+### Trạng thái các module (18 modules)
 
 | Thành phần | Trạng thái | Chi tiết triển khai |
 | --- | :---: | --- |
+| **Trợ lý AI & Lịch sử Chat (`ai`)** | **Hoàn thành** | Gemini Developer API (`@google/genai`, `vertexai: false`, model `gemini-3.5-flash-lite`), hỗ trợ key `AQ.` / `AIza...`, RAG Knowledge Base (9 tài liệu nghiệp vụ), 12 Function Calling tools tuân thủ RBAC, tự động gom thẻ chiến dịch kèm ảnh thật (`Evidence` / `Donation.photoUrl` / fallback theo `category`), xử lý mã lỗi `401`/`403`/`404`/`429`, lưu & đồng bộ lịch sử chat (`chat_conversations`, `chat_messages`), đổi tên, xóa, like/dislike và tạo lại câu trả lời. |
 | **Xác thực & OTP Email (`auth`, `mail`)** | **Hoàn thành** | Đăng ký trực tiếp hoặc xác thực OTP qua email (`Nodemailer` SMTP), quên mật khẩu & đặt lại mật khẩu bằng OTP, chuẩn hóa email, mã hóa mật khẩu `bcrypt`, cấp và xác thực JWT Bearer token. |
 | **Hồ sơ & Context User (`users`)** | **Hoàn thành** | Xem/cập nhật hồ sơ cá nhân (`/api/users/profile`: `fullName`, `phoneNumber`, `avatarUrl`), tra cứu danh sách tổ chức và vai trò tham gia (`/api/users/memberships`). |
 | **Phân quyền 2 tầng (RBAC)** | **Hoàn thành** | **Cấp hệ thống:** `SystemRole` (`USER`, `ADMIN`) bảo vệ bởi `JwtAuthGuard` và `RolesGuard` toàn cục.<br>**Cấp tổ chức:** `OrganizationRole` (`MEMBER`, `ORGANIZER`) bảo vệ bởi `OrganizationAccessService`. |
-| **Tổ chức (`organizations`)** | **Hoàn thành** | Danh sách/chi tiết tổ chức kèm `_count` (`events`, `members`); tạo tổ chức tự động gán `ORGANIZER` cho người tạo trong transaction; cập nhật thông tin (`name`, `description`, `email`, `phoneNumber`, `address`) và mời thành viên. |
+| **Tổ chức (`organizations`)** | **Hoàn thành** | Danh sách/chi tiết tổ chức kèm `_count` (`events`, `members`); tạo tổ chức tự động gán `ORGANIZER` cho người tạo trong transaction; cập nhật thông tin và mời thành viên. |
 | **Quản trị hệ thống (`admin`)** | **Hoàn thành** | Danh sách tổ chức chờ duyệt (`ADM-01`), duyệt/từ chối/đình chỉ tổ chức kèm `rejectionReason` và `TransparencyLog` (`ADM-02`), danh sách user kèm `memberships` & `_count` (`ADM-03`), khóa/mở khóa tài khoản (`ADM-04`), quản lý và kiểm duyệt sự kiện toàn hệ thống (`ADM-05`, `ADM-06`). |
-| **Chiến dịch & Danh mục (`events`)** | **Hoàn thành** | Vòng đời chiến dịch (`DRAFT` → `PUBLISHED` → `CLOSED` / `CANCELLED`), quản lý `VolunteerRole` và `DonationNeed` (tính toán sẵn `approvedQuantity`, `pledgedQuantity`, `receivedQuantity`, `distributedQuantity`, `_count`), danh mục `ItemType` & `Unit`, **field `category` mới** (`disaster_relief`, `food_water`, `medical_aid`, `education`, `community_support`, `emergency_shelter`), **catalog areas** (`GET /events/catalogs/areas`). |
+| **Chiến dịch & Danh mục (`events`)** | **Hoàn thành** | Vòng đời chiến dịch (`DRAFT` → `PUBLISHED` → `CLOSED` / `CANCELLED`), quản lý `VolunteerRole` và `DonationNeed`, danh mục `ItemType`, `Unit` & `areas` (`GET /api/events/catalogs/areas`), phân loại theo `category`. |
 | **Tình nguyện viên (`volunteers`)** | **Hoàn thành** | Ứng tuyển TNV (`VOL-01`), xem đơn cá nhân (`VOL-02`), danh sách theo sự kiện (`VOL-03`), duyệt/từ chối kèm `rejectionReason` (`VOL-04`), Check-in / Check-out ca trực (`VOL-05`, `VOL-06`). |
-| **Quyên góp (`donations`)** | **Hoàn thành** | Đăng ký quyên góp sinh Tracking ID (`TRK-...`) hỗ trợ `photoUrl` & `notes`, xem lịch sử cá nhân, tiếp nhận vào kho (`RECEIVED`) hoặc từ chối (`REJECTED`) kèm cập nhật `Inventory` và `TransparencyLog`, hủy đơn `PENDING`. |
-| **Kho bãi & Đóng kiện (`inventory`, `batches`)** | **Hoàn thành** | Truy vấn tồn kho bảo toàn theo tổ chức & sự kiện (`OA-S4-05`), đóng lô hàng từ các khoản `RECEIVED` (`BAT-01`), chuyển trạng thái `READY` (`BAT-04`), đối soát `returnedQuantity` / `lostQuantity` sau chuyến đi (`BAT-05`). |
-| **Chuyến xe & Phân phối (`trips`, `distribution`)** | **Hoàn thành** | Lập chuyến xe gán lô `READY`, TNV `APPROVED` (đúng 1 `LEADER`) và các điểm phát (`TRP-03`); tra cứu chuyến xe công khai cho sự kiện đã công bố (`TRP-01`); cập nhật trạng thái chuyến xe (`TRP-04`), điểm phát (`DIS-04`) và ghi nhận số lượng trao tặng (`DIS-01`). **Atomic Distribution + Evidence** (`POST /trips/:id/distribute-with-evidence`: ghi nhận phân phối + upload ảnh minh chứng trong 1 transaction). |
-| **Bằng chứng & Minh bạch (`evidence`, `transparency`, `storage`)** | **Hoàn thành** | Upload ảnh (`JPEG`/`PNG`/`WebP` <= 5MB) qua `/api/uploads`, tải lên & duyệt bằng chứng thực địa kèm xác nhận quyền riêng tư, tra cứu công khai qua `trackingId`, audit logs và timeline. |
-| **Thống kê & Báo cáo (`dashboard`)** | **Hoàn thành** | Thống kê tổng quan sự kiện (`/api/dashboard/events/:eventId` kèm số lượng pending donations/applications/evidences), xuất báo cáo nghiệm thu `CSV` / `Excel` / `PDF` / `JSON` (`/api/reports/events/:id/export`). |
-| **Kiểm thử tự động** | **Hoàn thành** | **Unit tests:** 141/141 tests passed trên 16 test files (Vitest).<br>**E2E & Smoke tests:** Kịch bản kiểm thử tích hợp Auth, RBAC & HTTP contracts (`test/auth.e2e-spec.ts`, `test/scaffold.e2e-spec.ts`). |
+| **Quyên góp (`donations`)** | **Hoàn thành** | Đăng ký quyên góp sinh Tracking ID (`TRK-...`) hỗ trợ `photoUrl`, xem lịch sử cá nhân, tiếp nhận vào kho (`RECEIVED`) hoặc từ chối (`REJECTED`) kèm cập nhật `Inventory` và `TransparencyLog`, hủy đơn `PENDING`. |
+| **Kho bãi & Đóng kiện (`inventory`, `batches`)** | **Hoàn thành** | Truy vấn tồn kho bảo toàn theo tổ chức & sự kiện, đóng lô hàng từ các khoản `RECEIVED`, chuyển trạng thái `READY`, đối soát `returnedQuantity` / `lostQuantity` sau chuyến đi. |
+| **Chuyến xe & Phân phối (`trips`, `distribution`)** | **Hoàn thành** | Lập chuyến xe gán lô `READY`, TNV `APPROVED` (đúng 1 `LEADER`) và các điểm phát; cập nhật trạng thái chuyến xe/điểm phát; ghi nhận bàn giao **Atomic** (`POST /api/trips/:id/distribute-with-evidence`: ghi nhận phân phối + upload ảnh minh chứng trong 1 transaction). |
+| **Bằng chứng & Minh bạch (`evidence`, `transparency`, `storage`)** | **Hoàn thành** | Upload ảnh (`JPEG`/`PNG`/`WebP` ≤ 5MB) qua `/api/uploads`, tải lên & duyệt bằng chứng thực địa kèm xác nhận quyền riêng tư, tra cứu công khai qua `trackingId`, audit logs và timeline. |
+| **Thống kê & Báo cáo (`dashboard`)** | **Hoàn thành** | Thống kê tổng quan sự kiện (`/api/dashboard/events/:eventId`), xuất báo cáo nghiệm thu `CSV` / `Excel` / `PDF` / `JSON` (`/api/reports/events/:id/export`). |
+| **Kiểm thử tự động** | **Hoàn thành** | Unit tests với Vitest & E2E/Smoke tests với Supertest (`test/auth.e2e-spec.ts`, `test/scaffold.e2e-spec.ts`). |
 
 ---
 
 ## Mô hình Phân quyền (RBAC 2 tầng)
 
-Hệ thống tuân thủ mô hình **RBAC 2 tầng** ([docs/architecture.md](docs/architecture.md) và [docs/API_contract/API_CONTRACT_OpenAid.md](docs/API_contract/API_CONTRACT_OpenAid.md)):
+Hệ thống tuân thủ mô hình **RBAC 2 tầng** (áp dụng đồng bộ cho cả REST API và AI Function Calling):
 
 ```text
 1. SYSTEM-LEVEL ROLE (Toàn hệ thống - User.systemRole)
-   ├── USER  : Người dùng thông thường (có thể quyên góp, ứng tuyển TNV, tạo tổ chức).
+   ├── USER  : Người dùng thông thường (quyên góp, ứng tuyển TNV, tạo tổ chức, đồng bộ lịch sử chat AI).
    └── ADMIN : Quản trị viên nền tảng (duyệt tổ chức, quản lý user, kiểm duyệt sự kiện, xem audit logs).
 
 2. ORGANIZATION-LEVEL ROLE (Theo phạm vi tổ chức - OrganizationMember.role)
@@ -62,10 +64,11 @@ Hệ thống tuân thủ mô hình **RBAC 2 tầng** ([docs/architecture.md](doc
 
 | Thành phần | Công nghệ |
 | --- | --- |
-| Runtime | Node.js >= 22, npm |
-| Ngôn ngữ | TypeScript 5+, native ESM (`"type": "module"`) |
+| Runtime | Node.js ≥ 22, npm |
+| Ngôn ngữ | TypeScript 6, native ESM (`"type": "module"`) |
 | Framework | NestJS 12, Express |
 | Database / ORM | PostgreSQL, Prisma 6 (`@prisma/client`) |
+| AI / LLM | Google Gemini Developer API (`@google/genai`, `vertexai: false`, `gemini-3.5-flash-lite`) |
 | Xác thực & Bảo mật | Passport JWT, `bcrypt`, `JwtAuthGuard`, `RolesGuard`, `OrganizationAccessService` |
 | Email / OTP | Nodemailer (SMTP) |
 | File Storage | Multer, Local disk storage (`uploads/`, `JPEG`/`PNG`/`WebP`, max 5MB) |
@@ -83,17 +86,19 @@ OpenAid_BE/
 ├── .github/workflows/ci.yml    # Pipeline CI: validate schema, build, lint, test
 ├── docs/                       # Tài liệu đồ án, API Contract, SRS, ERD & sơ đồ thiết kế
 ├── prisma/
-│   ├── migrations/             # Lịch sử migrations PostgreSQL
-│   ├── schema.prisma           # Định nghĩa models, enums, ràng buộc quan hệ (thêm field Event.category, Event.area)
+│   ├── migrations/             # Lịch sử migrations PostgreSQL (init, otp_verification, chat_history)
+│   ├── schema.prisma           # Models, enums & ràng buộc quan hệ (gồm ChatConversation, ChatMessage)
 │   └── seed.mjs                # Script nạp dữ liệu mẫu (users, orgs, events, batches, trips...)
 ├── scripts/check-db.mjs        # Kiểm tra kết nối DB và độ khớp Prisma schema
 ├── src/
 │   ├── common/                 # Guards, decorators (@Roles, @Public, @CurrentUser), filters, interceptors, pipes
-│   ├── config/                 # Cấu hình môi trường và env validation
+│   ├── config/                 # Cấu hình môi trường (database, jwt, mail, ai) & env validation
 │   ├── database/               # PrismaModule, PrismaService
-│   ├── modules/                # 17 modules: admin, auth, batches, dashboard, distribution, donations,
-│   │                           # events, evidence, health, inventory, mail, organizations, storage,
-│   │                           # transparency, trips, users, volunteers
+│   ├── modules/                # 18 modules:
+│   │   ├── ai/                 # Trợ lý AI: ai.service, ai.controller, dto/, prompts/, knowledge/ (RAG), tools/ (12 tools)
+│   │   ├── admin/ auth/ batches/ dashboard/ distribution/ donations/
+│   │   ├── events/ evidence/ health/ inventory/ mail/ organizations/
+│   │   └── storage/ transparency/ trips/ users/ volunteers/
 │   ├── app.module.ts           # Root module
 │   ├── bootstrap.ts            # Cấu hình HTTP chung (CORS, /api prefix, Pipes, Interceptors, Swagger)
 │   └── main.ts                 # Bootstrap server
@@ -101,7 +106,6 @@ OpenAid_BE/
 ├── compose.yaml                # Docker Compose cho Backend + PostgreSQL
 ├── Dockerfile                  # Multi-stage build Dockerfile
 ├── package.json
-├── CONTRIBUTING.md
 └── README.md
 ```
 
@@ -110,8 +114,9 @@ OpenAid_BE/
 ## Khởi chạy dự án cục bộ
 
 ### 1. Chuẩn bị môi trường
-* Node.js >= 22 và npm.
+* Node.js ≥ 22 và npm.
 * PostgreSQL 14+ (hoặc chạy qua Docker Compose).
+* Google AI Studio API Key (miễn phí tại [Google AI Studio](https://aistudio.google.com/apikey)) cho tính năng Chatbot AI.
 
 ### 2. Cấu hình biến môi trường
 
@@ -131,6 +136,8 @@ cp .env.example .env
 | `JWT_EXPIRES_IN` | `7d` | Thời hạn Access Token |
 | `FRONTEND_URL` | `http://localhost:3000` | Origin Frontend được phép CORS |
 | `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASS`, `MAIL_FROM` | `smtp.gmail.com`, `587` | Cấu hình SMTP gửi OTP qua email |
+| `GEMINI_API_KEY` | — | API Key từ Google AI Studio (hỗ trợ cả dạng `AQ.` và `AIza...`) |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Model Gemini Flash sử dụng cho Gemini Developer API |
 
 ### 3. Cài đặt, Migration & Seed dữ liệu mẫu
 
@@ -138,8 +145,9 @@ cp .env.example .env
 # Cài đặt thư viện
 npm ci
 
-# Áp dụng migration và sinh Prisma Client
-npx prisma migrate dev
+# Áp dụng migrations và sinh Prisma Client
+npm run prisma:migrate:deploy
+npm run prisma:generate
 
 # Nạp dữ liệu mẫu ban đầu (tài khoản demo, tổ chức, danh mục, chiến dịch, lô hàng, chuyến xe)
 npm run prisma:seed
@@ -164,8 +172,6 @@ npm run start:prod
 * **OpenAPI JSON:** `http://localhost:3001/api/docs-json`
 * **Health Liveness:** `http://localhost:3001/api/health/live`
 
-*(Hoặc chạy toàn bộ hệ thống `db` + `backend` + `frontend` bằng `docker compose up --build` tại thư mục gốc `OpenAid/`.)*
-
 ---
 
 ## Tài khoản Demo (từ `prisma/seed.mjs`)
@@ -183,53 +189,25 @@ npm run start:prod
 
 | Nhóm | Method | Endpoint | Quyền truy cập | Chức năng |
 | --- | --- | --- | --- | --- |
-| **Auth** | `POST` | `/api/auth/send-register-otp` | Công khai | Gửi OTP xác thực email đăng ký |
-| **Auth** | `POST` | `/api/auth/verify-register` | Công khai | Xác thực OTP và đăng ký tài khoản |
-| **Auth** | `POST` | `/api/auth/forgot-password` | Công khai | Gửi OTP đặt lại mật khẩu |
-| **Auth** | `POST` | `/api/auth/reset-password` | Công khai | Đặt lại mật khẩu với OTP |
-| **Auth** | `POST` | `/api/auth/register` | Công khai | Đăng ký trực tiếp (không OTP) |
-| **Auth** | `POST` | `/api/auth/login` | Công khai | Đăng nhập nhận JWT Access Token |
-| **Users** | `GET` / `PATCH` | `/api/users/profile` | Bearer JWT | Xem / cập nhật hồ sơ cá nhân |
-| **Users** | `GET` | `/api/users/memberships` | Bearer JWT | Danh sách tổ chức và vai trò của user |
-| **Organizations** | `GET` | `/api/organizations`, `/api/organizations/:id` | Công khai | Danh sách và chi tiết tổ chức (kèm thành viên & `_count`) |
-| **Organizations** | `POST` | `/api/organizations` | Bearer JWT | Đăng ký tổ chức mới (trạng thái `PENDING`) |
-| **Organizations** | `PATCH` | `/api/organizations/:id` | `ORGANIZER` | Cập nhật thông tin tổ chức |
-| **Organizations** | `POST` | `/api/organizations/:id/members` | `ORGANIZER` | Mời / thêm thành viên vào tổ chức |
-| **Admin** | `GET` | `/api/admin/organizations/pending` | `ADMIN` | Danh sách tổ chức chờ duyệt |
-| **Admin** | `PATCH` | `/api/admin/organizations/:id/review` | `ADMIN` | Duyệt / từ chối / đình chỉ tổ chức |
-| **Admin** | `GET` | `/api/admin/users` | `ADMIN` | Danh sách user (kèm `memberships` & `_count`) |
-| **Admin** | `PATCH` | `/api/admin/users/:id/active` | `ADMIN` | Khóa / mở khóa tài khoản user |
-| **Admin** | `GET` | `/api/admin/events` | `ADMIN` | Danh sách toàn bộ sự kiện mọi trạng thái |
-| **Admin** | `PATCH` | `/api/admin/events/:id/status` | `ADMIN` | Kiểm duyệt / tạm đình chỉ / mở lại sự kiện |
-| **Events** | `GET` | `/api/events/catalogs/item-types`, `/units`, `/areas` | Công khai | Danh mục loại hàng hóa, đơn vị tính & khu vực |
-| **Events** | `GET` | `/api/events`, `/api/events/:id` | Công khai | Danh sách & chi tiết sự kiện (kèm tiến độ thực tế, field `category`) |
-| **Events** | `POST` / `PATCH` / `DELETE` | `/api/events`, `/api/events/:id` | `ORGANIZER` | Tạo, cập nhật (hỗ trợ `category`), xóa nháp chiến dịch |
-| **Events** | `PATCH` | `/api/events/:id/status` | `ORGANIZER` / `ADMIN` | Chuyển trạng thái (`PUBLISHED`, `CLOSED`, `CANCELLED`) |
-| **Events** | `GET` / `POST` / `PATCH` / `DELETE` | `/api/events/:id/donation-needs*`, `/volunteer-roles*` | Công khai / `ORGANIZER` | Quản lý nhu cầu hiện vật và vị trí TNV |
-| **Volunteers** | `POST` | `/api/volunteers/apply` | Bearer JWT | Nộp đơn ứng tuyển TNV |
-| **Volunteers** | `GET` | `/api/volunteers/my` | Bearer JWT | Đơn ứng tuyển của bản thân |
-| **Volunteers** | `GET` | `/api/volunteers/event/:eventId` | `ORGANIZER` | Danh sách đơn TNV theo sự kiện |
-| **Volunteers** | `PATCH` | `/api/volunteers/:id/review` | `ORGANIZER` | Duyệt / từ chối đơn (hỗ trợ `rejectionReason`) |
-| **Volunteers** | `POST` | `/api/volunteers/:id/check-in`, `/check-out` | TNV / `ORGANIZER` | Điểm danh Check-in / Check-out ca trực |
-| **Donations** | `POST` | `/api/donations` | Bearer JWT | Cam kết quyên góp & sinh Tracking ID |
-| **Donations** | `GET` | `/api/donations/my` | Bearer JWT | Lịch sử quyên góp của bản thân |
-| **Donations** | `GET` | `/api/donations/event/:eventId` | `ORGANIZER` | Danh sách quyên góp theo sự kiện |
-| **Donations** | `PATCH` | `/api/donations/:id/receipt` | `ORGANIZER` | Xác nhận nhập kho (`RECEIVED`) hoặc từ chối (`REJECTED`) |
-| **Donations** | `POST` | `/api/donations/:id/cancel` | Bearer JWT | Hủy khoản quyên góp `PENDING` |
-| **Inventory** | `GET` | `/api/inventory/organization/:organizationId` | `ORGANIZER` | Tồn kho bảo toàn theo tổ chức & `eventId` |
-| **Batches** | `POST` / `GET` / `PATCH` | `/api/batches`, `/event/:eventId`, `/:id/status` | `ORGANIZER` | Tạo lô hàng, xem chi tiết, chuyển sang `READY` |
-| **Batches** | `POST` | `/api/batches/:id/reconcile` | `ORGANIZER` | Đối soát hoàn kho / thất thoát sau chuyến đi |
-| **Trips** | `GET` | `/api/trips/event/:eventId` | Công khai / `ORGANIZER` | Danh sách chuyến xe theo sự kiện (kèm `records` & `evidence` đã duyệt) |
-| **Trips** | `GET` | `/api/trips/:id` | `ORGANIZER` / TNV chuyến xe | Chi tiết chuyến xe (kèm `tripBatchId` cho distribution) |
-| **Trips** | `POST` / `PATCH` | `/api/trips`, `/api/trips/:id/status` | `ORGANIZER` / Trip Leader | Lập chuyến xe & cập nhật trạng thái |
-| **Trips** | `POST` | `/api/trips/:id/distribute-with-evidence` | Trip Leader / `ORGANIZER` | **Atomic**: Ghi nhận phân phối + upload ảnh minh chứng (1 transaction) |
-| **Distribution** | `POST` / `GET` | `/api/distribution/records`, `/trip/:tripId` | `ORGANIZER` / Trip Leader | Ghi nhận & xem biên bản cấp phát tại điểm (yêu cầu `tripBatchId`) |
-| **Distribution** | `PATCH` | `/api/distribution/points/:id/status` | `ORGANIZER` / Trip Leader | Cập nhật trạng thái điểm phát |
-| **Evidence** | `POST` / `GET` | `/api/evidence`, `/api/evidence/trip/:tripId` | `ORGANIZER` / TNV chuyến xe | Tải lên & xem bằng chứng phân phối |
-| **Evidence** | `PATCH` | `/api/evidence/:id/review` | `ORGANIZER` | Phê duyệt / từ chối bằng chứng công khai |
-| **Storage** | `POST` / `GET` | `/api/uploads`, `/api/uploads/:key` | Bearer JWT / Công khai | Tải lên & truy xuất file ảnh |
+| **AI Assistant** | `POST` | `/api/ai/chat` | Công khai | Chat trực tiếp với trợ lý AI OpenAid (cho khách chưa đăng nhập) |
+| **AI Assistant** | `GET` | `/api/ai/conversations` | Bearer JWT | Lấy danh sách lịch sử hội thoại của tài khoản hiện tại |
+| **AI Assistant** | `POST` | `/api/ai/conversations/messages` | Bearer JWT | Gửi tin nhắn, gọi AI + Function Calling & lưu đồng bộ vào DB |
+| **AI Assistant** | `PATCH` / `DELETE` | `/api/ai/conversations/:id` | Bearer JWT | Đổi tên / xóa cuộc hội thoại (cascade xóa tin nhắn) |
+| **AI Assistant** | `PATCH` | `/api/ai/messages/:id/feedback` | Bearer JWT | Lưu đánh giá `like` / `dislike` cho tin nhắn AI |
+| **AI Assistant** | `POST` | `/api/ai/conversations/:id/regenerate` | Bearer JWT | Tạo lại câu trả lời mới và cập nhật DB |
+| **Auth** | `POST` | `/api/auth/send-register-otp`, `/verify-register` | Công khai | Gửi OTP & xác thực đăng ký tài khoản |
+| **Auth** | `POST` | `/api/auth/forgot-password`, `/reset-password` | Công khai | Gửi OTP & đặt lại mật khẩu |
+| **Auth** | `POST` | `/api/auth/register`, `/login` | Công khai | Đăng ký trực tiếp & đăng nhập nhận JWT |
+| **Users** | `GET` / `PATCH` | `/api/users/profile`, `/memberships` | Bearer JWT | Xem/cập nhật hồ sơ & tổ chức tham gia |
+| **Organizations** | `GET` / `POST` / `PATCH` | `/api/organizations*` | Công khai / JWT / `ORGANIZER` | Tra cứu, đăng ký tổ chức, cập nhật & mời thành viên |
+| **Admin** | `GET` / `PATCH` | `/api/admin/organizations*`, `/users*`, `/events*` | `ADMIN` | Duyệt tổ chức, quản lý user & kiểm duyệt sự kiện |
+| **Events** | `GET` / `POST` / `PATCH` / `DELETE` | `/api/events*`, `/catalogs/*` | Công khai / `ORGANIZER` | Quản lý chiến dịch, danh mục `item-types`, `units`, `areas`, `donation-needs`, `volunteer-roles` |
+| **Volunteers** | `POST` / `GET` / `PATCH` | `/api/volunteers*` | Bearer JWT / `ORGANIZER` | Ứng tuyển, duyệt đơn, Check-in / Check-out ca trực |
+| **Donations** | `POST` / `GET` / `PATCH` | `/api/donations*` | Bearer JWT / `ORGANIZER` | Cam kết quyên góp sinh Tracking ID, nhập kho (`RECEIVED`) / từ chối, hủy đơn |
+| **Inventory & Batches** | `GET` / `POST` / `PATCH` | `/api/inventory*`, `/api/batches*` | `ORGANIZER` | Tồn kho bảo toàn, đóng lô hàng, chuyển `READY`, đối soát sau chuyến đi |
+| **Trips & Distribution** | `GET` / `POST` / `PATCH` | `/api/trips*`, `/api/distribution*` | Công khai / `ORGANIZER` / Trip Leader | Lập chuyến xe, cập nhật điểm phát, bàn giao **Atomic** (`distribute-with-evidence`) |
+| **Evidence & Transparency** | `POST` / `GET` / `PATCH` | `/api/evidence*`, `/api/transparency*`, `/api/uploads*` | Công khai / JWT / `ORGANIZER` | Upload & duyệt ảnh minh chứng, tra cứu công khai theo `trackingId`, audit logs |
 | **Dashboard & Reports** | `GET` | `/api/dashboard/events/:eventId`, `/api/reports/events/:id/export` | `ORGANIZER` / `ADMIN` | Thống kê sự kiện & xuất báo cáo (`csv`, `excel`, `pdf`, `json`) |
-| **Transparency** | `GET` | `/api/transparency/track/:trackingId`, `/timeline`, `/logs` | Công khai / `ADMIN` | Tra cứu hành trình công khai, timeline & audit logs |
 | **Health** | `GET` | `/api/health/live` | Công khai | Kiểm tra trạng thái hoạt động của server |
 
 ---
@@ -248,62 +226,27 @@ npm run start:prod
 | `npm run lint` | Kiểm tra chất lượng code bằng Oxlint |
 | `npm run format` | Định dạng code bằng Prettier |
 | `npm run build` | Chạy `prisma generate` và biên dịch NestJS sang `dist/` |
-| `npm test` | Chạy Unit Tests toàn bộ 16 modules bằng Vitest (`141/141 passed`) |
+| `npm test` | Chạy Unit Tests bằng Vitest |
 | `npm run test:e2e` | Build và chạy E2E Integration & Smoke Tests (`vitest.config.e2e.ts`) |
 | `npm run db:check` | Kiểm tra kết nối và độ khớp giữa DB và Prisma schema |
-| `npm run prisma:seed` | Nạp dữ liệu mẫu (users, orgs, events, categories, batches, trips) |
+| `npm run prisma:migrate:deploy` | Áp dụng toàn bộ Prisma migrations lên PostgreSQL |
+| `npm run prisma:seed` | Nạp dữ liệu mẫu ban đầu |
 
 ---
 
-## Các Cập Nhật Gần Đây (v2.1)
+## Các Cập Nhật Gần Đây
 
+### v2.2 — Trợ lý AI OpenAid & Đồng bộ Lịch sử Chat
 | Phân loại | Thay đổi |
-|-----------|----------|
-| **Atomic Trip Distribution + Evidence** | Endpoint mới `POST /trips/:id/distribute-with-evidence` (DTO: `RecordDistributionWithEvidenceDto`) kết hợp ghi nhận phân phối + upload ảnh minh chứng trong 1 Prisma transaction (rollback nếu fail) |
-| **Event Category Field** | Thêm field `category` (String?) vào model `Event` (Prisma schema), hỗ trợ 6 category: `disaster_relief`, `food_water`, `medical_aid`, `education`, `community_support`, `emergency_shelter` |
-| **Areas Catalog** | Endpoint mới `GET /events/catalogs/areas` trả về danh sách areas distinct từ events đã publish |
-| **Security** | Xóa hardcoded password `"123456"` trong `authService.login`, orgCode generation dùng timestamp-based (`${prefix}-${Date.now().toString(36)}`) để tránh collision |
-| **Trip Status Enum** | FE/BE đồng bộ dùng enum `TripStatus` (`SCHEDULED`, `PREPARING`, `IN_TRANSIT`, `COMPLETED`, `CANCELLED`) thay vì string literal |
-| **Distribution Record tripBatchId** | FE truyền `tripBatchId` trực tiếp (là `trip.batches[].id`) thay vì `batchId` lookup, tránh race condition |
-| **Atomic Distribution + Evidence** | `recordDistributionWithEvidence()` tính `distributedQuantity` từ `DistributionRecord` chứ không dùng field không tồn tại trên `TripBatch`, chỉ update `Batch.distributedQuantity` |
-| **Prisma Schema** | Thêm field `Event.category`; `Event` model đã có `location` làm area |
-| **Missing FE Pages Support** | BE đã có sẵn endpoints cho `/my/activities`, `/my/donations`, `/admin/users`, `/profile`, `/forgot-password` (3 bước OTP) |
+| --- | --- |
+| **Module AI (`src/modules/ai/`)** | Tích hợp `@google/genai` kết nối Gemini Developer API (`vertexai: false`, `generativelanguage.googleapis.com`, model `gemini-3.5-flash-lite`), hỗ trợ Authorization Key dạng `AQ.` và `AIza...`, xử lý chi tiết lỗi `401`/`403`/`404`/`429`. |
+| **RAG + 12 Function Calling Tools** | Nạp 9 tài liệu nghiệp vụ OpenAid vào Knowledge Base và 12 tools đọc dữ liệu thật (`Events`, `Donations`, `Volunteers`, `Batches`, `Trips`, `Organizations`, `Transparency`, `Navigation`) tuân thủ phân quyền RBAC theo người dùng. |
+| **Đồng bộ lịch sử Chat theo User** | Thêm migration `20261127103000_add_chat_history` với 2 bảng `chat_conversations` & `chat_messages` (lưu `campaigns` dạng JSON và `feedback` like/dislike). |
+| **Thẻ chiến dịch kèm ảnh thật** | Tự động gom danh sách chiến dịch (`campaigns`) khi bot gọi tool tìm kiếm sự kiện/TNV, kéo ảnh theo thứ tự ưu tiên: ảnh `Evidence` đã duyệt → `Donation.photoUrl` → ảnh mặc định theo `category`. |
 
----
-
-## Cấu trúc Database Quan Trọng (Prisma)
-
-```prisma
-model Event {
-  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String       @db.Uuid
-  title         String       @db.VarChar(200)
-  description   String?
-  location      String       // Dùng làm area
-  category      String?      @db.VarChar(80)  // Mới: disaster_relief, food_water, medical_aid, education, community_support, emergency_shelter
-  status        EventStatus  @default(DRAFT)
-  // ... relations
-}
-
-model TripBatch {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tripId       String   @db.Uuid
-  batchId      String   @db.Uuid
-  // Không có field distributedQuantity - tính từ DistributionRecord
-  batch        Batch    @relation(fields: [batchId, eventId], references: [id, eventId], map: "fk_trip_batches_batch")
-}
-
-model Batch {
-  id                 String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  quantity           Decimal     @db.Decimal(14, 3)  // totalQuantity
-  distributedQuantity Decimal    @default(0) @db.Decimal(14, 3)
-  // ...
-}
-
-model DistributionRecord {
-  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tripBatchId         String   @db.Uuid  // FK đến TripBatch (bắt buộc)
-  distributedQuantity Decimal  @db.Decimal(14, 3)
-  // ...
-}
-```
+### v2.1 — Atomic Distribution, Category & OTP
+| Phân loại | Thay đổi |
+| --- | --- |
+| **Atomic Trip Distribution + Evidence** | Endpoint `POST /api/trips/:id/distribute-with-evidence` kết hợp ghi nhận phân phối + upload ảnh minh chứng trong 1 Prisma transaction. |
+| **Event Category & Areas Catalog** | Thêm cột `Event.category` (6 danh mục chuẩn) và endpoint `GET /api/events/catalogs/areas`. |
+| **Security & OTP** | Xác thực OTP 3 bước cho đăng ký & quên mật khẩu qua `otp_verifications`, bỏ mật khẩu mặc định hardcode, sinh `orgCode` chống trùng lặp. |

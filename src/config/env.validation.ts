@@ -58,6 +58,14 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   MAIL_FROM?: string;
+
+  @IsString()
+  @IsOptional()
+  GEMINI_API_KEY?: string;
+
+  @IsString()
+  @IsOptional()
+  GEMINI_MODEL: string = 'gemini-3.5-flash-lite';
 }
 
 export function validate(config: Record<string, unknown>) {

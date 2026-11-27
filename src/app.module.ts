@@ -22,6 +22,7 @@ import { AdminModule } from './modules/admin/admin.module.js';
 
 import { HealthModule } from './modules/health/health.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
+import { AiModule } from './modules/ai/ai.module.js';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { MailModule } from './modules/mail/mail.module.js';
     TransparencyModule,
     DashboardModule,
     AdminModule,
+    AiModule,
   ],
 })
 export class AppModule {}

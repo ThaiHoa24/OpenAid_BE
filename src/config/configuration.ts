@@ -16,4 +16,8 @@ export default () => ({
     pass: process.env.MAIL_PASS ?? '',
     from: process.env.MAIL_FROM ?? 'OpenAid Platform <thaihoaa246@gmail.com>',
   },
+  ai: {
+    geminiApiKey: process.env.GEMINI_API_KEY ?? '',
+    geminiModel: process.env.GEMINI_MODEL ?? 'gemini-3.5-flash-lite',
+  },
 });
